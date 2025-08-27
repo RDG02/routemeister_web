@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Stap 2 - Routemeister</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #20c997;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Planning Stap 2</h1>
+            <p>Patiënten overzicht per tijdblok</p>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+            <h3>📊 CSV Verwerking Resultaten</h3>
+            <p><strong>Bestand:</strong> {{ planning_data.csv_file_name }}</p>
+            <p><strong>Nieuwe patiënten:</strong> {{ planning_data.patients_created }}</p>
+            <p><strong>Bestaande patiënten bijgewerkt:</strong> {{ planning_data.patients_updated }}</p>
+            <p><strong>Totaal patiënten vandaag:</strong> {{ total_patients }}</p>
+            
+            <!-- DEBUG Informatie -->
+            {% if show_debug %}
+            <div style="margin-top: 20px; padding: 15px; border-radius: 8px; background: #fff3cd; border: 1px solid #ffeaa7;">
+                <h4>🔍 Debug Informatie</h4>
+                <p><strong>CSV Datum:</strong> {{ debug_info.csv_date|default:"Niet gevonden" }}</p>
+                <p><strong>Totaal patiënten in database:</strong> {{ debug_info.total_patients_in_db }}</p>
+                <p><strong>Patiënten van vandaag:</strong> {{ debug_info.today_patients }}</p>
+                <p><strong>Patiënten van gisteren:</strong> {{ debug_info.yesterday_patients }}</p>
+                <p><strong>Patiënten van CSV datum:</strong> {{ debug_info.csv_date_patients|default:"0" }}</p>
+                <p><strong>Gebruikte patiënten voor planning:</strong> {{ debug_info.planning_patients_count }}</p>
+                <p><strong>Bron van patiënten:</strong> {{ debug_info.using_patients_from }}</p>
+                
+                {% if debug_info.csv_date_error %}
+                <p style="color: #dc3545;"><strong>❌ CSV Datum Fout:</strong> {{ debug_info.csv_date_error }}</p>
+                {% endif %}
+                
+                {% if debug_info.sample_patient %}
+                <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">
+                    <h5>📋 Sample Patiënt Data:</h5>
+                    <p><strong>Naam:</strong> {{ debug_info.sample_patient.naam }}</p>
+                    <p><strong>Ophaal tijd:</strong> {{ debug_info.sample_patient.ophaal_tijd }}</p>
+                    <p><strong>Eind behandeling:</strong> {{ debug_info.sample_patient.eind_behandel_tijd }}</p>
+                    <p><strong>Status:</strong> {{ debug_info.sample_patient.status }}</p>
+                    <p><strong>Coördinaten:</strong> {{ debug_info.sample_patient.latitude|default:"Geen" }}, {{ debug_info.sample_patient.longitude|default:"Geen" }}</p>
+                    <p><strong>Aangemaakt:</strong> {{ debug_info.sample_patient.created_at }}</p>
+                </div>
+                {% endif %}
+                
+                <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">
+                    <h5>📊 Tijdblok Toewijzing:</h5>
+                    <p><strong>Patiënten met halen tijdblok:</strong> {{ debug_info.patients_with_halen_timeslot }}</p>
+                    <p><strong>Patiënten met brengen tijdblok:</strong> {{ debug_info.patients_with_bringen_timeslot }}</p>
+                    <p><strong>Patiënten zonder tijdblok:</strong> {{ debug_info.patients_without_timeslot }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Geocoding Status -->
+            <div style="margin-top: 20px; padding: 15px; border-radius: 8px; {% if geocoding_complete %}background: #d4edda; border: 1px solid #c3e6cb;{% else %}background: #fff3cd; border: 1px solid #ffeaa7;{% endif %}">
+                <h4>🗺️ Geocoding Status</h4>
+                <p><strong>Patiënten met coördinaten:</strong> {{ patients_with_coords }}</p>
+                <p><strong>Patiënten zonder coördinaten:</strong> {{ patients_without_coords }}</p>
+                {% if geocoding_complete %}
+                    <p style="color: #155724; margin: 0;"><strong>✅ Geocoding voltooid!</strong> Alle patiënten hebben coördinaten.</p>
+                {% else %}
+                    <p style="color: #856404; margin: 0;"><strong>⚠️ Geocoding onvolledig!</strong> Sommige patiënten missen coördinaten.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Patiënt Status Overzicht -->
+            <div style="margin-top: 20px; padding: 15px; border-radius: 8px; background: #e3f2fd; border: 1px solid #bbdefb;">
+                <h4>📊 Patiënt Status Overzicht</h4>
+                <p><strong>Totaal patiënten vandaag:</strong> {{ total_patients }}</p>
+                <p><strong>Status 'nieuw':</strong> {{ patients_nieuw }}</p>
+                <p><strong>Andere status:</strong> {{ patients_other_status }}</p>
+                {% if patients_other_status > 0 %}
+                    <p style="color: #1976d2; margin: 0;"><strong>ℹ️ Info:</strong> Er zijn patiënten met andere status dan 'nieuw' die ook worden meegenomen in de planning.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Halen Tijdblokken -->
+        {% if sorted_halen_timeslots %}
+            <div style="margin-bottom: 30px;">
+                <h3>🚗 Halen Tijdblokken</h3>
+                {% for data in sorted_halen_timeslots %}
+                <div style="border: 2px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #e3f2fd;">
+                    <h4 style="color: #0056b3;">📥 {{ data.timeslot.naam }}</h4>
+                    <p><strong>Tijd:</strong> {{ data.timeslot.heen_start_tijd|time:"H:i" }} - {{ data.timeslot.heen_eind_tijd|time:"H:i" }}</p>
+                    <p><strong>Patiënten:</strong> {{ data.patients|length }}</p>
+                    
+                    <div style="margin-top: 15px;">
+                        {% for patient_data in data.patients %}
+                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 10px; background: white;">
+                            <strong>{{ patient_data.patient.naam }}</strong><br>
+                            <small>
+                                📍 {{ patient_data.patient.straat }}, {{ patient_data.patient.postcode }} {{ patient_data.patient.plaats }}<br>
+                                {% if patient_data.patient.latitude and patient_data.patient.longitude %}
+                                    🗺️ <span style="color: #28a745;">✅ Gegeocoded: {{ patient_data.patient.latitude|floatformat:6 }}, {{ patient_data.patient.longitude|floatformat:6 }}</span><br>
+                                {% else %}
+                                    🗺️ <span style="color: #dc3545;">❌ Geen coördinaten!</span><br>
+                                {% endif %}
+                                ⏰ Ophaal: {{ patient_data.patient.ophaal_tijd|time:"H:i" }} | 
+                                Einde: {{ patient_data.patient.eind_behandel_tijd|time:"H:i" }}<br>
+                                📞 {{ patient_data.patient.telefoonnummer }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Brengen Tijdblokken -->
+        {% if sorted_bringen_timeslots %}
+            <div style="margin-bottom: 30px;">
+                <h3>🏠 Brengen Tijdblokken</h3>
+                {% for data in sorted_bringen_timeslots %}
+                <div style="border: 2px solid #28a745; border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #e8f5e8;">
+                    <h4 style="color: #155724;">📤 {{ data.timeslot.naam }}</h4>
+                    <p><strong>Tijd:</strong> {{ data.timeslot.terug_start_tijd|time:"H:i" }} - {{ data.timeslot.terug_eind_tijd|time:"H:i" }}</p>
+                    <p><strong>Patiënten:</strong> {{ data.patients|length }}</p>
+                    
+                    <div style="margin-top: 15px;">
+                        {% for patient_data in data.patients %}
+                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 10px; background: white;">
+                            <strong>{{ patient_data.patient.naam }}</strong><br>
+                            <small>
+                                📍 {{ patient_data.patient.straat }}, {{ patient_data.patient.postcode }} {{ patient_data.patient.plaats }}<br>
+                                {% if patient_data.patient.latitude and patient_data.patient.longitude %}
+                                    🗺️ <span style="color: #28a745;">✅ Gegeocoded: {{ patient_data.patient.latitude|floatformat:6 }}, {{ patient_data.patient.longitude|floatformat:6 }}</span><br>
+                                {% else %}
+                                    🗺️ <span style="color: #dc3545;">❌ Geen coördinaten!</span><br>
+                                {% endif %}
+                                ⏰ Ophaal: {{ patient_data.patient.ophaal_tijd|time:"H:i" }} | 
+                                Einde: {{ patient_data.patient.eind_behandel_tijd|time:"H:i" }}<br>
+                                📞 {{ patient_data.patient.telefoonnummer }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if not sorted_halen_timeslots and not sorted_bringen_timeslots %}
+            <div style="text-align: center; padding: 30px; color: #6c757d;">
+                <h3>⚠️ Geen patiënten gevonden</h3>
+                <p>Er zijn geen patiënten gevonden voor de geselecteerde tijdblokken.</p>
+                <p>Controleer of de CSV data correct is verwerkt.</p>
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="actions">
+                <button type="submit" name="action" value="terug" class="btn" style="background: #6c757d;">Terug</button>
+                <button type="submit" name="action" value="akkoord" class="btn">Akkoord - Volgende Stap</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

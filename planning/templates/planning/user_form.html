@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if user %}Bewerk Gebruiker{% else %}Nieuwe Gebruiker{% endif %} - Routemeister</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #20c997;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{% if user %}✏️ Bewerk Gebruiker{% else %}➕ Nieuwe Gebruiker{% endif %}</h1>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="username">Gebruikersnaam:</label>
+                <input type="text" name="username" id="username" value="{{ user.username|default:'' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" name="email" id="email" value="{{ user.email|default:'' }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Wachtwoord:</label>
+                <input type="password" name="password" id="password" {% if not user %}required{% endif %}>
+                {% if user %}<small>Laat leeg om niet te wijzigen</small>{% endif %}
+            </div>
+            
+            {% if user %}
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" name="is_active" id="is_active" {% if user.is_active %}checked{% endif %}>
+                    <label for="is_active">Actief</label>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" name="is_staff" id="is_staff" {% if user.is_staff %}checked{% endif %}>
+                    <label for="is_staff">Staff rechten</label>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <a href="{% url 'users_list' %}" class="btn" style="background: #6c757d;">Terug</a>
+                <button type="submit" class="btn">{% if user %}Bijwerken{% else %}Aanmaken{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

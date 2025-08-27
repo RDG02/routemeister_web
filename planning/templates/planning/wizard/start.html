@@ -1,0 +1,304 @@
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <!-- Progress Bar -->
+    <div class="wizard-progress">
+        <div class="progress-step active">
+            <div class="step-number">1</div>
+            <div class="step-label">Upload & Preview</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <div class="step-number">2</div>
+            <div class="step-label">Toewijzing & Routes</div>
+        </div>
+    </div>
+
+    <!-- Welcome Section -->
+    <div class="wizard-welcome">
+        <div class="welcome-icon">
+            <img src="{% static 'Routemeister Icon Yellow.png' %}" alt="Routemeister" class="routemeister-icon-large">
+        </div>
+        <h1>🚀 Nieuwe Planning Wizard</h1>
+        <p class="welcome-description">
+            Maak een nieuwe planning in 2 eenvoudige stappen. Upload je CSV/SLK bestand, 
+            laat de wizard automatisch patiënten toewijzen en routes genereren.
+        </p>
+    </div>
+
+    <!-- Features Overview -->
+    <div class="wizard-features">
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📁</div>
+                <h3>Upload & Preview</h3>
+                <p>Upload CSV/SLK bestanden met auto-detectie en preview functionaliteit</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>Auto-toewijzing</h3>
+                <p>Automatische toewijzing volgens OptaPlanner constraints</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🖱️</div>
+                <h3>Drag & Drop</h3>
+                <p>Handmatige correcties met drag-and-drop interface</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🗺️</div>
+                <h3>Route Generatie</h3>
+                <p>Realistische routes met Google Maps API</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="wizard-actions">
+        <a href="{% url 'planning_wizard_upload' %}" class="btn btn-primary btn-large">
+            <span class="btn-icon">🚀</span>
+            Start Planning Wizard
+        </a>
+        
+        <a href="{% url 'new_planning' %}" class="btn btn-secondary">
+            <span class="btn-icon">📋</span>
+            Oude Planning Methode
+        </a>
+    </div>
+
+    <!-- Requirements -->
+    <div class="wizard-requirements">
+        <h3>📋 Vereisten</h3>
+        <ul>
+            <li>✅ CSV of SLK bestand met patiëntgegevens</li>
+            <li>✅ Beschikbare voertuigen in het systeem</li>
+            <li>✅ Actieve tijdblokken geconfigureerd</li>
+            <li>✅ Planning constraints ingesteld in admin</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.wizard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.progress-step.active {
+    opacity: 1;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #6c757d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-step.active .step-number {
+    background: #F8CD46;
+}
+
+.step-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.progress-line {
+    width: 100px;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 1rem;
+}
+
+.wizard-welcome {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.welcome-icon {
+    margin-bottom: 1rem;
+}
+
+.routemeister-icon-large {
+    width: 80px;
+    height: 80px;
+}
+
+.wizard-welcome h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.welcome-description {
+    font-size: 1.1rem;
+    color: #6c757d;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.wizard-features {
+    margin-bottom: 3rem;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+}
+
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.feature-card p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.wizard-actions {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin: 0 0.5rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #F8CD46, #f39c12);
+    color: white;
+    box-shadow: 0 4px 12px rgba(248, 205, 70, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(248, 205, 70, 0.4);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-large {
+    font-size: 1.1rem;
+    padding: 1.2rem 2.5rem;
+}
+
+.btn-icon {
+    margin-right: 0.5rem;
+}
+
+.wizard-requirements {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border-left: 4px solid #F8CD46;
+}
+
+.wizard-requirements h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.wizard-requirements ul {
+    list-style: none;
+    padding: 0;
+}
+
+.wizard-requirements li {
+    padding: 0.5rem 0;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .wizard-container {
+        padding: 1rem;
+    }
+    
+    .wizard-welcome h1 {
+        font-size: 2rem;
+    }
+    
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .wizard-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn {
+        margin: 0;
+    }
+}
+</style>
+{% endblock %}

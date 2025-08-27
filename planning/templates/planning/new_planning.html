@@ -1,0 +1,369 @@
+{% extends 'planning/base.html' %}
+
+{% block title %}Nieuwe Planning - Routemeister{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>📋 Nieuwe Planning</h1>
+        <p>Stap 1: Selecteer voertuigen, tijdblokken en upload CSV bestand</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <!-- Voertuigen Selectie -->
+        <div class="form-section">
+            <div class="section-header">
+                <h2>🚐 Selecteer Voertuigen</h2>
+                <div class="select-all-controls">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllVehicles()">
+                        <i class="fas fa-check-square"></i> Selecteer Alle
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="deselectAllVehicles()">
+                        <i class="fas fa-square"></i> Deselecteer Alle
+                    </button>
+                </div>
+            </div>
+            <div class="vehicle-grid">
+                {% for vehicle in available_vehicles %}
+                <div class="vehicle-option">
+                    <input type="checkbox" name="vehicles" value="{{ vehicle.id }}" id="vehicle_{{ vehicle.id }}" class="vehicle-checkbox">
+                    <label for="vehicle_{{ vehicle.id }}">
+                        <div class="vehicle-color" style="background-color: {{ vehicle.kleur }};"></div>
+                        <div class="vehicle-info">
+                            <strong>{{ vehicle.referentie }}</strong>
+                            <div>{{ vehicle.kenteken }}</div>
+                            <div>{{ vehicle.aantal_zitplaatsen }} zitplaatsen</div>
+                        </div>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Tijdblokken Selectie -->
+        <div class="form-section">
+            <div class="section-header">
+                <h2>⏰ Selecteer Tijdblokken</h2>
+                <div class="select-all-controls">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllTimeslots()">
+                        <i class="fas fa-check-square"></i> Selecteer Alle
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="deselectAllTimeslots()">
+                        <i class="fas fa-square"></i> Deselecteer Alle
+                    </button>
+                </div>
+            </div>
+            <div class="timeslot-grid">
+                {% for timeslot in active_timeslots %}
+                <div class="timeslot-option">
+                    <input type="checkbox" name="timeslots" value="{{ timeslot.id }}" id="timeslot_{{ timeslot.id }}" class="timeslot-checkbox">
+                    <label for="timeslot_{{ timeslot.id }}">
+                        <div class="timeslot-info">
+                            <strong>{{ timeslot.naam }}</strong>
+                            <div>Halen: {{ timeslot.heen_start_tijd|time:"H:i" }} - {{ timeslot.heen_eind_tijd|time:"H:i" }}</div>
+                            <div>Brengen: {{ timeslot.terug_start_tijd|time:"H:i" }} - {{ timeslot.terug_eind_tijd|time:"H:i" }}</div>
+                        </div>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- CSV Upload -->
+        <div class="form-section">
+            <h2>📁 Upload Bestand</h2>
+            <div class="upload-area">
+                <input type="file" name="csv_file" accept=".csv,.slk" required>
+                <p class="help-text">
+                    Upload een CSV of SLK bestand met patiëntgegevens in het Routemeister formaat.<br>
+                    Het bestand moet de volgende kolommen bevatten: Patiënt ID, Achternaam, Voornaam, Adres, Plaats, Postcode, Telefoon, Afspraak Datum, Behandeling Tijd.<br>
+                    Ondersteunde formaten: .csv (Comma Separated Values) en .slk (SYLK/Symbolic Link)
+                </p>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="background: #ff6b35; color: white; padding: 1rem 2rem; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-arrow-right"></i>
+                Volgende Stap
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    color: var(--routemeister-orange);
+    margin-bottom: 0.5rem;
+}
+
+.form-section {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.section-header h2 {
+    color: var(--routemeister-asphalt);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.select-all-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: 2px solid #6c757d;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+.vehicle-grid, .timeslot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.vehicle-option, .timeslot-option {
+    position: relative;
+}
+
+.vehicle-option input[type="checkbox"], .timeslot-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.vehicle-option label, .timeslot-option label {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.vehicle-option input[type="checkbox"]:checked + label,
+.timeslot-option input[type="checkbox"]:checked + label {
+    border-color: var(--routemeister-orange);
+    background: rgba(255, 107, 53, 0.1);
+}
+
+.vehicle-color {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.vehicle-info, .timeslot-info {
+    flex: 1;
+}
+
+.vehicle-info strong, .timeslot-info strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--routemeister-asphalt);
+}
+
+.vehicle-info div, .timeslot-info div {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    background: #f8f9fa;
+}
+
+.upload-area input[type="file"] {
+    margin-bottom: 1rem;
+}
+
+.help-text {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.form-actions {
+    text-align: center;
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.btn {
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background: #ff6b35 !important;
+    color: white !important;
+    border: 2px solid #ff6b35 !important;
+}
+
+.btn-primary:hover {
+    background: #e55a2b !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .select-all-controls {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .vehicle-grid, .timeslot-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// Voertuigen selectie functionaliteit
+function selectAllVehicles() {
+    const checkboxes = document.querySelectorAll('.vehicle-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateVehicleLabels();
+}
+
+function deselectAllVehicles() {
+    const checkboxes = document.querySelectorAll('.vehicle-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateVehicleLabels();
+}
+
+function updateVehicleLabels() {
+    const vehicleOptions = document.querySelectorAll('.vehicle-option');
+    vehicleOptions.forEach(option => {
+        const checkbox = option.querySelector('input[type="checkbox"]');
+        const label = option.querySelector('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--routemeister-orange)';
+            label.style.background = 'rgba(255, 107, 53, 0.1)';
+        } else {
+            label.style.borderColor = '#e0e0e0';
+            label.style.background = 'transparent';
+        }
+    });
+}
+
+// Tijdsblokken selectie functionaliteit
+function selectAllTimeslots() {
+    const checkboxes = document.querySelectorAll('.timeslot-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateTimeslotLabels();
+}
+
+function deselectAllTimeslots() {
+    const checkboxes = document.querySelectorAll('.timeslot-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateTimeslotLabels();
+}
+
+function updateTimeslotLabels() {
+    const timeslotOptions = document.querySelectorAll('.timeslot-option');
+    timeslotOptions.forEach(option => {
+        const checkbox = option.querySelector('input[type="checkbox"]');
+        const label = option.querySelector('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--routemeister-orange)';
+            label.style.background = 'rgba(255, 107, 53, 0.1)';
+        } else {
+            label.style.borderColor = '#e0e0e0';
+            label.style.background = 'transparent';
+        }
+    });
+}
+
+// Event listeners voor individuele checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    // Voertuigen
+    const vehicleCheckboxes = document.querySelectorAll('.vehicle-checkbox');
+    vehicleCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateVehicleLabels);
+    });
+    
+    // Tijdsblokken
+    const timeslotCheckboxes = document.querySelectorAll('.timeslot-checkbox');
+    timeslotCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateTimeslotLabels);
+    });
+});
+</script>
+{% endblock %}

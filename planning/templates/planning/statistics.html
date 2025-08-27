@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistieken - Routemeister</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --routemeister-orange: #ff6b35;
+            --routemeister-yellow: #F8CD46;
+            --routemeister-asphalt: #2c3e50;
+            --routemeister-white: #ffffff;
+            --routemeister-light-grey: #f8f9fa;
+            --success-green: #28a745;
+            --warning-orange: #ffc107;
+            --danger-red: #dc3545;
+            --info-blue: #17a2b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--routemeister-light-grey);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--routemeister-orange), #ff8a50);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .date-filter {
+            background: white;
+            padding: 1.5rem;
+            margin: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .date-filter h3 {
+            margin: 0 0 1rem 0;
+            color: var(--routemeister-asphalt);
+        }
+
+        .date-inputs {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-input {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .date-input label {
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+        }
+
+        .date-input input {
+            padding: 0.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .view-type-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .view-type-selector label {
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+        }
+
+        .view-type-selector select {
+            padding: 0.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .view-type-selector select:focus {
+            outline: none;
+            border-color: var(--routemeister-orange);
+        }
+
+        .filter-btn {
+            background: var(--routemeister-orange);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            background: #e55a2b;
+            transform: translateY(-2px);
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 5px solid var(--routemeister-orange);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success-green);
+        }
+
+        .stat-card.warning {
+            border-left-color: var(--warning-orange);
+        }
+
+        .stat-card.danger {
+            border-left-color: var(--danger-red);
+        }
+
+        .stat-card.info {
+            border-left-color: var(--info-blue);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .stat-change {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .stat-change.positive {
+            color: var(--success-green);
+        }
+
+        .stat-change.negative {
+            color: var(--danger-red);
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 300px;
+        }
+
+        .tables-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem;
+        }
+
+        .table-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .table-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stats-table th,
+        .stats-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stats-table th {
+            background: var(--routemeister-light-grey);
+            font-weight: bold;
+            color: var(--routemeister-asphalt);
+        }
+
+        .stats-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .metric-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .metric-badge.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .metric-badge.danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .metric-badge.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .daily-stats-table {
+            margin-top: 2rem;
+        }
+
+        .daily-stats-table .table-container {
+            margin: 0;
+        }
+
+        .export-section {
+            background: white;
+            padding: 1.5rem;
+            margin: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .export-btn {
+            background: var(--success-green);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin: 0 0.5rem;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .export-btn.secondary {
+            background: var(--info-blue);
+        }
+
+        .export-btn.secondary:hover {
+            background: #138496;
+        }
+
+        @media (max-width: 1200px) {
+            .charts-section,
+            .tables-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-overview {
+                grid-template-columns: 1fr;
+            }
+            
+            .date-inputs {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>
+            <i class="fas fa-chart-line"></i>
+            Statistieken Dashboard
+        </h1>
+        <p>Analyse van planning prestaties en KPI's</p>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="date-filter">
+        <h3><i class="fas fa-calendar-alt"></i> Datum Bereik & Weergave</h3>
+        <form method="GET" class="date-inputs">
+            <!-- View Type Selector -->
+            <div class="view-type-selector">
+                <label for="view">Weergave Type:</label>
+                <select id="view" name="view" onchange="this.form.submit()">
+                    <option value="daily" {% if view_type == 'daily' %}selected{% endif %}>Dagelijks</option>
+                    <option value="monthly" {% if view_type == 'monthly' %}selected{% endif %}>Maandelijks</option>
+                    <option value="yearly" {% if view_type == 'yearly' %}selected{% endif %}>Jaarlijks</option>
+                    <option value="vehicle" {% if view_type == 'vehicle' %}selected{% endif %}>Voertuig-specifiek</option>
+                </select>
+            </div>
+            
+            <div class="date-input">
+                <label for="start_date">Start Datum:</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="date-input">
+                <label for="end_date">Eind Datum:</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <button type="submit" class="filter-btn">
+                <i class="fas fa-filter"></i>
+                Filter Toepassen
+            </button>
+        </form>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="stats-overview">
+        {% if view_type == 'daily' %}
+            <div class="stat-card success">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">{{ total_stats.total_patients }}</div>
+                <div class="stat-label">Totaal Patiënten</div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    {{ total_stats.avg_patients_per_day|floatformat:1 }} per dag
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">🚗</div>
+                <div class="stat-value">{{ total_stats.total_routes }}</div>
+                <div class="stat-label">Totaal Routes</div>
+                <div class="stat-change">
+                    {{ total_stats.avg_distance_per_route|floatformat:1 }} km gemiddeld
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-icon">📏</div>
+                <div class="stat-value">{{ total_stats.total_distance|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kilometers</div>
+                <div class="stat-change">
+                    {{ total_stats.total_distance|floatformat:0 }} km totaal
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€{{ total_stats.total_cost|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kosten</div>
+                <div class="stat-change">
+                    €{{ total_stats.avg_cost_per_patient|floatformat:2 }} per patiënt
+                </div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-value">{{ total_stats.total_time|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Minuten</div>
+                <div class="stat-change">
+                    {{ total_stats.total_time|floatformat:0 }} min totaal
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value">{{ total_stats.total_days }}</div>
+                <div class="stat-label">Actieve Dagen</div>
+                <div class="stat-change">
+                    {{ date_range_days }} dagen bereik
+                </div>
+            </div>
+        {% elif view_type == 'monthly' %}
+            <div class="stat-card success">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">{{ total_stats.total_months }}</div>
+                <div class="stat-label">Totaal Maanden</div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    {{ total_stats.avg_patients_per_month|floatformat:1 }} per maand
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">{{ total_stats.total_patients }}</div>
+                <div class="stat-label">Totaal Patiënten</div>
+                <div class="stat-change">
+                    {{ total_stats.avg_patients_per_month|floatformat:1 }} gemiddeld
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-icon">📏</div>
+                <div class="stat-value">{{ total_stats.total_distance|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kilometers</div>
+                <div class="stat-change">
+                    {{ total_stats.total_distance|floatformat:0 }} km totaal
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€{{ total_stats.total_cost|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kosten</div>
+                <div class="stat-change">
+                    €{{ total_stats.avg_cost_per_month|floatformat:2 }} per maand
+                </div>
+            </div>
+        {% elif view_type == 'yearly' %}
+            <div class="stat-card success">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">{{ total_stats.total_years }}</div>
+                <div class="stat-label">Totaal Jaren</div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    {{ total_stats.avg_patients_per_year|floatformat:1 }} per jaar
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">{{ total_stats.total_patients }}</div>
+                <div class="stat-label">Totaal Patiënten</div>
+                <div class="stat-change">
+                    {{ total_stats.avg_patients_per_year|floatformat:1 }} gemiddeld
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-icon">📏</div>
+                <div class="stat-value">{{ total_stats.total_distance|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kilometers</div>
+                <div class="stat-change">
+                    {{ total_stats.total_distance|floatformat:0 }} km totaal
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€{{ total_stats.total_cost|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kosten</div>
+                <div class="stat-change">
+                    €{{ total_stats.avg_cost_per_year|floatformat:2 }} per jaar
+                </div>
+            </div>
+        {% elif view_type == 'vehicle' %}
+            <div class="stat-card success">
+                <div class="stat-icon">🚗</div>
+                <div class="stat-value">{{ total_stats.total_vehicles }}</div>
+                <div class="stat-label">Totaal Voertuigen</div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    {{ total_stats.avg_utilization|floatformat:1 }}% benutting
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">{{ total_stats.total_patients }}</div>
+                <div class="stat-label">Totaal Patiënten</div>
+                <div class="stat-change">
+                    {{ total_stats.total_patients|floatformat:0 }} totaal
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-icon">📏</div>
+                <div class="stat-value">{{ total_stats.total_distance|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kilometers</div>
+                <div class="stat-change">
+                    {{ total_stats.total_distance|floatformat:0 }} km totaal
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€{{ total_stats.total_cost|floatformat:0 }}</div>
+                <div class="stat-label">Totaal Kosten</div>
+                <div class="stat-change">
+                    €{{ total_stats.total_cost|floatformat:2 }} totaal
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        {% if view_type == 'daily' %}
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Dagelijkse Patiënten
+                </div>
+                <canvas id="patientsChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Dagelijkse Kosten
+                </div>
+                <canvas id="costsChart" class="chart-canvas"></canvas>
+            </div>
+        {% elif view_type == 'monthly' %}
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Maandelijkse Patiënten
+                </div>
+                <canvas id="patientsChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Maandelijkse Kosten
+                </div>
+                <canvas id="costsChart" class="chart-canvas"></canvas>
+            </div>
+        {% elif view_type == 'yearly' %}
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Jaarlijkse Patiënten
+                </div>
+                <canvas id="patientsChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Jaarlijkse Kosten
+                </div>
+                <canvas id="costsChart" class="chart-canvas"></canvas>
+            </div>
+        {% elif view_type == 'vehicle' %}
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Voertuig Patiënten
+                </div>
+                <canvas id="patientsChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Voertuig Benutting
+                </div>
+                <canvas id="utilizationChart" class="chart-canvas"></canvas>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Tables Section -->
+    <div class="tables-section">
+        {% if view_type == 'daily' %}
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-trophy"></i>
+                    Top 5 Dagen (Meeste Patiënten)
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Patiënten</th>
+                            <th>Routes</th>
+                            <th>Kosten</th>
+                            <th>Efficiëntie</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in top_days %}
+                        <tr>
+                            <td>{{ day.date|date:"d-m-Y" }}</td>
+                            <td>
+                                <span class="metric-badge success">{{ day.patient_count }}</span>
+                            </td>
+                            <td>{{ day.estimated_routes }}</td>
+                            <td>€{{ day.estimated_cost|floatformat:2 }}</td>
+                            <td>
+                                <span class="metric-badge info">{{ day.avg_patients_per_route|floatformat:1 }}/route</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Top 5 Kostenefficiënte Dagen
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Patiënten</th>
+                            <th>Totaal Kosten</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in cost_efficiency %}
+                        <tr>
+                            <td>{{ day.date|date:"d-m-Y" }}</td>
+                            <td>
+                                <span class="metric-badge success">€{{ day.cost_per_patient|floatformat:2 }}</span>
+                            </td>
+                            <td>{{ day.patient_count }}</td>
+                            <td>€{{ day.estimated_cost|floatformat:2 }}</td>
+                            <td>
+                                {% if day.cost_per_patient < 7.5 %}
+                                    <span class="metric-badge success">Uitstekend</span>
+                                {% elif day.cost_per_patient < 10 %}
+                                    <span class="metric-badge warning">Goed</span>
+                                {% else %}
+                                    <span class="metric-badge danger">Verbetering nodig</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif view_type == 'monthly' %}
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-trophy"></i>
+                    Top 5 Maanden (Meeste Patiënten)
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Maand</th>
+                            <th>Patiënten</th>
+                            <th>Routes</th>
+                            <th>Kosten</th>
+                            <th>Dagen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month in top_months %}
+                        <tr>
+                            <td>{{ month.month_name }}</td>
+                            <td>
+                                <span class="metric-badge success">{{ month.patient_count }}</span>
+                            </td>
+                            <td>{{ month.estimated_routes }}</td>
+                            <td>€{{ month.estimated_cost|floatformat:2 }}</td>
+                            <td>{{ month.days_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Top 5 Kostenefficiënte Maanden
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Maand</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Patiënten</th>
+                            <th>Totaal Kosten</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month in cost_efficiency %}
+                        <tr>
+                            <td>{{ month.month_name }}</td>
+                            <td>
+                                <span class="metric-badge success">€{{ month.cost_per_patient|floatformat:2 }}</span>
+                            </td>
+                            <td>{{ month.patient_count }}</td>
+                            <td>€{{ month.estimated_cost|floatformat:2 }}</td>
+                            <td>
+                                {% if month.cost_per_patient < 7.5 %}
+                                    <span class="metric-badge success">Uitstekend</span>
+                                {% elif month.cost_per_patient < 10 %}
+                                    <span class="metric-badge warning">Goed</span>
+                                {% else %}
+                                    <span class="metric-badge danger">Verbetering nodig</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif view_type == 'yearly' %}
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-trophy"></i>
+                    Top 5 Jaren (Meeste Patiënten)
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Jaar</th>
+                            <th>Patiënten</th>
+                            <th>Routes</th>
+                            <th>Kosten</th>
+                            <th>Maanden</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for year in top_years %}
+                        <tr>
+                            <td>{{ year.year }}</td>
+                            <td>
+                                <span class="metric-badge success">{{ year.patient_count }}</span>
+                            </td>
+                            <td>{{ year.estimated_routes }}</td>
+                            <td>€{{ year.estimated_cost|floatformat:2 }}</td>
+                            <td>{{ year.months_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Top 5 Kostenefficiënte Jaren
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Jaar</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Patiënten</th>
+                            <th>Totaal Kosten</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for year in cost_efficiency %}
+                        <tr>
+                            <td>{{ year.year }}</td>
+                            <td>
+                                <span class="metric-badge success">€{{ year.cost_per_patient|floatformat:2 }}</span>
+                            </td>
+                            <td>{{ year.patient_count }}</td>
+                            <td>€{{ year.estimated_cost|floatformat:2 }}</td>
+                            <td>
+                                {% if year.cost_per_patient < 7.5 %}
+                                    <span class="metric-badge success">Uitstekend</span>
+                                {% elif year.cost_per_patient < 10 %}
+                                    <span class="metric-badge warning">Goed</span>
+                                {% else %}
+                                    <span class="metric-badge danger">Verbetering nodig</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif view_type == 'vehicle' %}
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-trophy"></i>
+                    Top 5 Voertuigen (Meeste Patiënten)
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Voertuig</th>
+                            <th>Patiënten</th>
+                            <th>Routes</th>
+                            <th>Benutting</th>
+                            <th>Kosten</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in top_vehicles %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {{ vehicle.vehicle.kleur }}; border: 2px solid white;"></div>
+                                    {{ vehicle.vehicle.referentie }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="metric-badge success">{{ vehicle.total_patients }}</span>
+                            </td>
+                            <td>{{ vehicle.total_routes }}</td>
+                            <td>
+                                <span class="metric-badge {% if vehicle.utilization_rate > 80 %}success{% elif vehicle.utilization_rate > 60 %}warning{% else %}danger{% endif %}">
+                                    {{ vehicle.utilization_rate|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td>€{{ vehicle.total_cost|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <div class="table-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Top 5 Efficiënte Voertuigen
+                </div>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Voertuig</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Patiënten</th>
+                            <th>Benutting</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in efficient_vehicles %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {{ vehicle.vehicle.kleur }}; border: 2px solid white;"></div>
+                                    {{ vehicle.vehicle.referentie }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="metric-badge success">€{{ vehicle.cost_per_patient|floatformat:2 }}</span>
+                            </td>
+                            <td>{{ vehicle.total_patients }}</td>
+                            <td>
+                                <span class="metric-badge {% if vehicle.utilization_rate > 80 %}success{% elif vehicle.utilization_rate > 60 %}warning{% else %}danger{% endif %}">
+                                    {{ vehicle.utilization_rate|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if vehicle.cost_per_patient < 7.5 %}
+                                    <span class="metric-badge success">Uitstekend</span>
+                                {% elif vehicle.cost_per_patient < 10 %}
+                                    <span class="metric-badge warning">Goed</span>
+                                {% else %}
+                                    <span class="metric-badge danger">Verbetering nodig</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if view_type == 'daily' %}
+    <!-- Vehicle Utilization -->
+    <div class="table-container" style="margin: 2rem;">
+        <div class="table-title">
+            <i class="fas fa-car"></i>
+            Voertuig Benutting Top 5
+        </div>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Benutting %</th>
+                    <th>Patiënten</th>
+                    <th>Routes</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for util in vehicle_utilization %}
+                <tr>
+                    <td>{{ util.date|date:"d-m-Y" }}</td>
+                    <td>
+                        <span class="metric-badge {% if util.utilization > 80 %}success{% elif util.utilization > 60 %}warning{% else %}danger{% endif %}">
+                            {{ util.utilization|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td>{{ util.patient_count }}</td>
+                    <td>{{ util.routes }}</td>
+                    <td>
+                        {% if util.utilization > 80 %}
+                            <span class="metric-badge success">Uitstekend</span>
+                        {% elif util.utilization > 60 %}
+                            <span class="metric-badge warning">Goed</span>
+                        {% else %}
+                            <span class="metric-badge danger">Laag</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Statistics Table -->
+    <div class="daily-stats-table">
+        <div class="table-container">
+            <div class="table-title">
+                <i class="fas fa-table"></i>
+                {% if view_type == 'daily' %}
+                    Dagelijkse Statistieken Overzicht
+                {% elif view_type == 'monthly' %}
+                    Maandelijkse Statistieken Overzicht
+                {% elif view_type == 'yearly' %}
+                    Jaarlijkse Statistieken Overzicht
+                {% elif view_type == 'vehicle' %}
+                    Voertuig Statistieken Overzicht
+                {% endif %}
+            </div>
+            <table class="stats-table">
+                {% if view_type == 'daily' %}
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Patiënten</th>
+                            <th>Rolstoel</th>
+                            <th>Routes</th>
+                            <th>Kilometers</th>
+                            <th>Minuten</th>
+                            <th>Kosten</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Geocoding Fouten</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in daily_stats %}
+                        <tr>
+                            <td>{{ stat.date|date:"d-m-Y" }}</td>
+                            <td>{{ stat.patient_count }}</td>
+                            <td>
+                                {% if stat.wheelchair_count > 0 %}
+                                    <span class="metric-badge warning">{{ stat.wheelchair_count }}</span>
+                                {% else %}
+                                    <span class="metric-badge success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ stat.estimated_routes }}</td>
+                            <td>{{ stat.estimated_distance|floatformat:1 }} km</td>
+                            <td>{{ stat.estimated_time|floatformat:0 }} min</td>
+                            <td>€{{ stat.estimated_cost|floatformat:2 }}</td>
+                            <td>€{{ stat.cost_per_patient|floatformat:2 }}</td>
+                            <td>
+                                {% if stat.failed_geocoding > 0 %}
+                                    <span class="metric-badge danger">{{ stat.failed_geocoding }}</span>
+                                {% else %}
+                                    <span class="metric-badge success">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                {% elif view_type == 'monthly' %}
+                    <thead>
+                        <tr>
+                            <th>Maand</th>
+                            <th>Patiënten</th>
+                            <th>Rolstoel</th>
+                            <th>Routes</th>
+                            <th>Kilometers</th>
+                            <th>Kosten</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Dagen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in monthly_stats %}
+                        <tr>
+                            <td>{{ stat.month_name }}</td>
+                            <td>{{ stat.patient_count }}</td>
+                            <td>
+                                {% if stat.wheelchair_count > 0 %}
+                                    <span class="metric-badge warning">{{ stat.wheelchair_count }}</span>
+                                {% else %}
+                                    <span class="metric-badge success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ stat.estimated_routes }}</td>
+                            <td>{{ stat.estimated_distance|floatformat:1 }} km</td>
+                            <td>€{{ stat.estimated_cost|floatformat:2 }}</td>
+                            <td>€{{ stat.cost_per_patient|floatformat:2 }}</td>
+                            <td>{{ stat.days_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                {% elif view_type == 'yearly' %}
+                    <thead>
+                        <tr>
+                            <th>Jaar</th>
+                            <th>Patiënten</th>
+                            <th>Rolstoel</th>
+                            <th>Routes</th>
+                            <th>Kilometers</th>
+                            <th>Kosten</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Maanden</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in yearly_stats %}
+                        <tr>
+                            <td>{{ stat.year }}</td>
+                            <td>{{ stat.patient_count }}</td>
+                            <td>
+                                {% if stat.wheelchair_count > 0 %}
+                                    <span class="metric-badge warning">{{ stat.wheelchair_count }}</span>
+                                {% else %}
+                                    <span class="metric-badge success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ stat.estimated_routes }}</td>
+                            <td>{{ stat.estimated_distance|floatformat:1 }} km</td>
+                            <td>€{{ stat.estimated_cost|floatformat:2 }}</td>
+                            <td>€{{ stat.cost_per_patient|floatformat:2 }}</td>
+                            <td>{{ stat.months_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                {% elif view_type == 'vehicle' %}
+                    <thead>
+                        <tr>
+                            <th>Voertuig</th>
+                            <th>Patiënten</th>
+                            <th>Routes</th>
+                            <th>Kilometers</th>
+                            <th>Kosten</th>
+                            <th>Benutting</th>
+                            <th>Kosten/Patiënt</th>
+                            <th>Dagen Gebruikt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in vehicle_stats %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {{ stat.vehicle.kleur }}; border: 2px solid white;"></div>
+                                    {{ stat.vehicle.referentie }} - {{ stat.vehicle.kenteken }}
+                                </div>
+                            </td>
+                            <td>{{ stat.total_patients }}</td>
+                            <td>{{ stat.total_routes }}</td>
+                            <td>{{ stat.total_distance|floatformat:1 }} km</td>
+                            <td>€{{ stat.total_cost|floatformat:2 }}</td>
+                            <td>
+                                <span class="metric-badge {% if stat.utilization_rate > 80 %}success{% elif stat.utilization_rate > 60 %}warning{% else %}danger{% endif %}">
+                                    {{ stat.utilization_rate|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td>€{{ stat.cost_per_patient|floatformat:2 }}</td>
+                            <td>{{ stat.days_used }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="export-section">
+        <h3><i class="fas fa-download"></i> Export Statistieken</h3>
+        <p>Download de statistieken voor verdere analyse</p>
+        <button class="export-btn" onclick="exportStatisticsCSV()">
+            <i class="fas fa-file-csv"></i>
+            Export naar CSV
+        </button>
+        <button class="export-btn secondary" onclick="exportStatisticsPDF()">
+            <i class="fas fa-file-pdf"></i>
+            Export naar PDF
+        </button>
+    </div>
+
+    <script>
+        // Chart.js configuration
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        };
+
+        // Patients Chart
+        const patientsCtx = document.getElementById('patientsChart').getContext('2d');
+        let patientsChart;
+
+        // Costs Chart
+        const costsCtx = document.getElementById('costsChart').getContext('2d');
+        let costsChart;
+
+        // Utilization Chart
+        const utilizationCtx = document.getElementById('utilizationChart').getContext('2d');
+        let utilizationChart;
+
+        function updateCharts() {
+            const view = document.getElementById('view').value;
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+
+            // Clear existing charts if they exist
+            if (patientsChart) patientsChart.destroy();
+            if (costsChart) costsChart.destroy();
+            if (utilizationChart) utilizationChart.destroy();
+
+            if (view === 'daily') {
+                patientsChart = new Chart(patientsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for stat in daily_stats %}'{{ stat.date|date:"d-m" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Patiënten',
+                            data: [{% for stat in daily_stats %}{{ stat.patient_count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                            borderColor: 'rgba(255, 107, 53, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+
+                costsChart = new Chart(costsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [{% for stat in daily_stats %}'{{ stat.date|date:"d-m" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Kosten (€)',
+                            data: [{% for stat in daily_stats %}{{ stat.estimated_cost }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 2,
+                            fill: true
+                        }]
+                    },
+                    options: chartOptions
+                });
+            } else if (view === 'monthly') {
+                patientsChart = new Chart(patientsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for stat in monthly_stats %}'{{ stat.month_name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Patiënten',
+                            data: [{% for stat in monthly_stats %}{{ stat.patient_count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                            borderColor: 'rgba(255, 107, 53, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+
+                costsChart = new Chart(costsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [{% for stat in monthly_stats %}'{{ stat.month_name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Kosten (€)',
+                            data: [{% for stat in monthly_stats %}{{ stat.estimated_cost }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 2,
+                            fill: true
+                        }]
+                    },
+                    options: chartOptions
+                });
+            } else if (view === 'yearly') {
+                patientsChart = new Chart(patientsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for stat in yearly_stats %}'{{ stat.year }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Patiënten',
+                            data: [{% for stat in yearly_stats %}{{ stat.patient_count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                            borderColor: 'rgba(255, 107, 53, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+
+                costsChart = new Chart(costsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [{% for stat in yearly_stats %}'{{ stat.year }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Kosten (€)',
+                            data: [{% for stat in yearly_stats %}{{ stat.estimated_cost }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 2,
+                            fill: true
+                        }]
+                    },
+                    options: chartOptions
+                });
+            } else if (view === 'vehicle') {
+                patientsChart = new Chart(patientsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for stat in vehicle_stats %}'{{ stat.vehicle.referentie }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            label: 'Patiënten',
+                            data: [{% for stat in vehicle_stats %}{{ stat.total_patients }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                            borderColor: 'rgba(255, 107, 53, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+
+                utilizationChart = new Chart(utilizationCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [{% for stat in vehicle_stats %}'{{ stat.vehicle.referentie }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        datasets: [{
+                            data: [{% for stat in vehicle_stats %}{{ stat.utilization_rate }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 206, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)',
+                                'rgba(255, 159, 64, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initial chart update
+        updateCharts();
+
+        // Export functions
+        function exportStatisticsCSV() {
+            const view = document.getElementById('view').value;
+            let csvContent = '';
+            
+            if (view === 'daily') {
+                csvContent = "Datum,Patiënten,Rolstoel,Routes,Kilometers,Minuten,Kosten,Kosten/Patiënt,Geocoding Fouten\n";
+                {% for stat in daily_stats %}
+                csvContent += "{{ stat.date|date:'Y-m-d' }},{{ stat.patient_count }},{{ stat.wheelchair_count }},{{ stat.estimated_routes }},{{ stat.estimated_distance|floatformat:1 }},{{ stat.estimated_time|floatformat:0 }},{{ stat.estimated_cost|floatformat:2 }},{{ stat.cost_per_patient|floatformat:2 }},{{ stat.failed_geocoding }}\n";
+                {% endfor %}
+            } else if (view === 'monthly') {
+                csvContent = "Maand,Patiënten,Rolstoel,Routes,Kilometers,Kosten,Kosten/Patiënt,Dagen\n";
+                {% for stat in monthly_stats %}
+                csvContent += "{{ stat.month_name }},{{ stat.patient_count }},{{ stat.wheelchair_count }},{{ stat.estimated_routes }},{{ stat.estimated_distance|floatformat:1 }},{{ stat.estimated_cost|floatformat:2 }},{{ stat.cost_per_patient|floatformat:2 }},{{ stat.days_count }}\n";
+                {% endfor %}
+            } else if (view === 'yearly') {
+                csvContent = "Jaar,Patiënten,Rolstoel,Routes,Kilometers,Kosten,Kosten/Patiënt,Maanden\n";
+                {% for stat in yearly_stats %}
+                csvContent += "{{ stat.year }},{{ stat.patient_count }},{{ stat.wheelchair_count }},{{ stat.estimated_routes }},{{ stat.estimated_distance|floatformat:1 }},{{ stat.estimated_cost|floatformat:2 }},{{ stat.cost_per_patient|floatformat:2 }},{{ stat.months_count }}\n";
+                {% endfor %}
+            } else if (view === 'vehicle') {
+                csvContent = "Voertuig,Patiënten,Routes,Kilometers,Kosten,Benutting %,Kosten/Patiënt,Dagen Gebruikt\n";
+                {% for stat in vehicle_stats %}
+                csvContent += "{{ stat.vehicle.referentie }} - {{ stat.vehicle.kenteken }},{{ stat.total_patients }},{{ stat.total_routes }},{{ stat.total_distance|floatformat:1 }},{{ stat.total_cost|floatformat:2 }},{{ stat.utilization_rate|floatformat:1 }},{{ stat.cost_per_patient|floatformat:2 }},{{ stat.days_used }}\n";
+                {% endfor %}
+            }
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'statistieken_{{ view_type }}_{{ start_date|date:"Y-m-d" }}_tot_{{ end_date|date:"Y-m-d" }}.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportStatisticsPDF() {
+            alert('PDF export functionaliteit wordt binnenkort toegevoegd!');
+        }
+    </script>
+</body>
+</html>
+

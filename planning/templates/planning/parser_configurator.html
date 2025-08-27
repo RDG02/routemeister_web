@@ -1,0 +1,749 @@
+{% load planning_extras %}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} - Routemeister</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.2em;
+            margin: 0;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 40px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .upload-section.dragover {
+            border-color: #ffd700;
+            background: #fff8e1;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: #ffd700;
+            color: #333;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            background: #ffed4e;
+            transform: translateY(-2px);
+        }
+        
+        .configurator-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .data-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .mapping-panel {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .data-table th,
+        .data-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background: #e3f2fd;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        
+        .data-table td {
+            background: white;
+        }
+        
+        .data-table td:hover {
+            background: #fff3e0;
+            cursor: pointer;
+        }
+        
+        .data-table td.selected {
+            background: #ffd700 !important;
+            color: #333;
+        }
+        
+        .mapping-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .mapping-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .mapping-item.mapped {
+            border-color: #4caf50;
+            background: #e8f5e8;
+        }
+        
+        .mapping-item h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .mapping-item .field-name {
+            font-weight: bold;
+            color: #1976d2;
+        }
+        
+        .mapping-item .mapped-column {
+            background: #ffd700;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        .mapping-item .clear-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+        
+        .config-form {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .save-btn {
+            background: #4caf50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .save-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .save-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% csrf_token %}
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ step_title }}</h1>
+            <p>{{ step_description }}</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="upload-section" id="uploadSection">
+                <h3>📁 Upload Bestand</h3>
+                <p>Sleep een CSV of Excel bestand hierheen, of klik om te selecteren</p>
+                <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    📂 Bestand Selecteren
+                </button>
+                <div id="uploadStatus"></div>
+            </div>
+            
+            <!-- Configurator Grid (hidden until file uploaded) -->
+            <div id="configuratorGrid" class="configurator-grid hidden">
+                <!-- Data Preview -->
+                <div class="data-preview">
+                    <h3>📋 Data Preview</h3>
+                    <p>Klik op een kolom om deze te selecteren voor mapping</p>
+                    <div style="overflow-x: auto; max-height: 400px;">
+                        <table class="data-table" id="dataTable">
+                            <!-- Data wordt hier dynamisch ingeladen -->
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Mapping Panel -->
+                <div class="mapping-panel">
+                    <h3>🎯 Kolom Mapping</h3>
+                    <p>Selecteer een kolom uit de preview en wijs deze toe aan een veld</p>
+                    
+                    <ul class="mapping-list" id="mappingList">
+                        <li class="mapping-item" data-field="patient_id">
+                            <h4>👤 Patient ID</h4>
+                            <div class="field-name">patient_id</div>
+                            <div class="mapped-column hidden" id="mapped-patient_id"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('patient_id')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="achternaam">
+                            <h4>📝 Achternaam</h4>
+                            <div class="field-name">achternaam</div>
+                            <div class="mapped-column hidden" id="mapped-achternaam"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('achternaam')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="voornaam">
+                            <h4>📝 Voornaam</h4>
+                            <div class="field-name">voornaam</div>
+                            <div class="mapped-column hidden" id="mapped-voornaam"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('voornaam')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="adres">
+                            <h4>🏠 Adres</h4>
+                            <div class="field-name">adres</div>
+                            <div class="mapped-column hidden" id="mapped-adres"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('adres')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="plaats">
+                            <h4>🏙️ Plaats</h4>
+                            <div class="field-name">plaats</div>
+                            <div class="mapped-column hidden" id="mapped-plaats"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('plaats')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="postcode">
+                            <h4>📮 Postcode</h4>
+                            <div class="field-name">postcode</div>
+                            <div class="mapped-column hidden" id="mapped-postcode"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('postcode')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="telefoon1">
+                            <h4>📞 Telefoon 1</h4>
+                            <div class="field-name">telefoon1</div>
+                            <div class="mapped-column hidden" id="mapped-telefoon1"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('telefoon1')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="telefoon2">
+                            <h4>📞 Telefoon 2</h4>
+                            <div class="field-name">telefoon2</div>
+                            <div class="mapped-column hidden" id="mapped-telefoon2"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('telefoon2')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="datum">
+                            <h4>📅 Datum</h4>
+                            <div class="field-name">datum</div>
+                            <div class="mapped-column hidden" id="mapped-datum"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('datum')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="start_tijd">
+                            <h4>⏰ Start Tijd</h4>
+                            <div class="field-name">start_tijd</div>
+                            <div class="mapped-column hidden" id="mapped-start_tijd"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('start_tijd')">❌</button>
+                        </li>
+                        
+                        <li class="mapping-item" data-field="eind_tijd">
+                            <h4>⏰ Eind Tijd</h4>
+                            <div class="field-name">eind_tijd</div>
+                            <div class="mapped-column hidden" id="mapped-eind_tijd"></div>
+                            <button class="clear-btn hidden" onclick="clearMapping('eind_tijd')">❌</button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Configuration Form -->
+            <div id="configForm" class="config-form hidden">
+                <h3>⚙️ Parser Configuratie</h3>
+                
+                <div class="form-group">
+                    <label for="parserName">Parser Naam:</label>
+                    <input type="text" id="parserName" placeholder="Bijv. Mijn Custom Parser" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filenamePattern">Bestandsnaam Patroon:</label>
+                    <input type="text" id="filenamePattern" placeholder="Bijv. .*\.csv" value=".*">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Beschrijving:</label>
+                    <textarea id="description" rows="3" placeholder="Beschrijving van deze parser configuratie"></textarea>
+                </div>
+                
+                <button class="save-btn" id="saveBtn" onclick="saveParser()">
+                    💾 Parser Opslaan
+                </button>
+            </div>
+            
+            <!-- Status Messages -->
+            <div id="statusMessage"></div>
+        </div>
+    </div>
+    
+    <script>
+        let csvData = [];
+        let currentMapping = {};
+        let selectedColumn = null;
+        
+        // File upload handling
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        
+        // Drag and drop
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileUpload();
+            }
+        });
+        
+        function handleFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            // Show loading
+            document.getElementById('uploadStatus').innerHTML = '<p>📤 Bestand wordt geüpload...</p>';
+            
+            fetch('{% url "parser_configurator" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('uploadStatus').innerHTML = 
+                        `<div class="status-success">✅ Bestand "${data.filename}" succesvol geüpload (${data.row_count} rijen)</div>`;
+                    
+                    // Load data preview
+                    loadDataPreview();
+                    
+                    // Show configurator
+                    document.getElementById('configuratorGrid').classList.remove('hidden');
+                    document.getElementById('configForm').classList.remove('hidden');
+                } else {
+                    document.getElementById('uploadStatus').innerHTML = 
+                        `<div class="status-error">❌ ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('uploadStatus').innerHTML = 
+                    `<div class="status-error">❌ Fout bij upload: ${error}</div>`;
+            });
+        }
+        
+        function loadDataPreview() {
+            // Laad de data uit de session via AJAX
+            fetch('{% url "parser_configurator" %}?get_data=true')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.csv_data) {
+                    displayDataTable(data.csv_data);
+                } else {
+                    // Fallback naar voorbeeld data
+                    displayExampleData();
+                }
+            })
+            .catch(error => {
+                console.error('Fout bij laden data:', error);
+                displayExampleData();
+            });
+        }
+        
+        function displayDataTable(csvData) {
+            const table = document.getElementById('dataTable');
+            
+            if (!csvData || csvData.length === 0) {
+                table.innerHTML = '<tr><td colspan="12">Geen data gevonden</td></tr>';
+                return;
+            }
+            
+            // Bepaal aantal kolommen
+            const maxColumns = Math.max(...csvData.map(row => row.data.length));
+            
+            // Maak header
+            let headerHtml = '<thead><tr>';
+            for (let i = 0; i < maxColumns; i++) {
+                headerHtml += `<th>Kolom ${i}</th>`;
+            }
+            headerHtml += '</tr></thead>';
+            
+            // Maak body
+            let bodyHtml = '<tbody>';
+            csvData.slice(0, 10).forEach((row, rowIndex) => { // Toon max 10 rijen
+                bodyHtml += '<tr>';
+                for (let i = 0; i < maxColumns; i++) {
+                    const cellValue = i < row.data.length ? row.data[i] : '';
+                    bodyHtml += `<td onclick="selectColumn(${i})">${cellValue}</td>`;
+                }
+                bodyHtml += '</tr>';
+            });
+            bodyHtml += '</tbody>';
+            
+            table.innerHTML = headerHtml + bodyHtml;
+        }
+        
+        function displayExampleData() {
+            const table = document.getElementById('dataTable');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Kolom 0</th>
+                        <th>Kolom 1</th>
+                        <th>Kolom 2</th>
+                        <th>Kolom 3</th>
+                        <th>Kolom 4</th>
+                        <th>Kolom 5</th>
+                        <th>Kolom 6</th>
+                        <th>Kolom 7</th>
+                        <th>Kolom 8</th>
+                        <th>Kolom 9</th>
+                        <th>Kolom 10</th>
+                        <th>Kolom 11</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td onclick="selectColumn(0)">FL25002609</td>
+                        <td onclick="selectColumn(1)">Schnurpfeil</td>
+                        <td onclick="selectColumn(2)">Anette</td>
+                        <td onclick="selectColumn(3)">Thelengasse 41</td>
+                        <td onclick="selectColumn(4)">Niederkassel</td>
+                        <td onclick="selectColumn(5)">53859 D</td>
+                        <td onclick="selectColumn(6)"></td>
+                        <td onclick="selectColumn(7)">0228-43328686</td>
+                        <td onclick="selectColumn(8)">01735176280</td>
+                        <td onclick="selectColumn(9)">22-8-2025</td>
+                        <td onclick="selectColumn(10)">0845</td>
+                        <td onclick="selectColumn(11)">1515</td>
+                    </tr>
+                    <tr>
+                        <td onclick="selectColumn(0)">FL25004041</td>
+                        <td onclick="selectColumn(1)">Hermanns</td>
+                        <td onclick="selectColumn(2)">Wilfried</td>
+                        <td onclick="selectColumn(3)">Blucherstrasse 24</td>
+                        <td onclick="selectColumn(4)">Siegburg</td>
+                        <td onclick="selectColumn(5)">53721 D</td>
+                        <td onclick="selectColumn(6)"></td>
+                        <td onclick="selectColumn(7)">022419388933</td>
+                        <td onclick="selectColumn(8)">01603112992</td>
+                        <td onclick="selectColumn(9)">22-8-2025</td>
+                        <td onclick="selectColumn(10)">1015</td>
+                        <td onclick="selectColumn(11)">1200</td>
+                    </tr>
+                </tbody>
+            `;
+        }
+        
+        function selectColumn(columnIndex) {
+            // Clear previous selection
+            document.querySelectorAll('.data-table td').forEach(td => {
+                td.classList.remove('selected');
+            });
+            
+            // Select new column
+            const cells = document.querySelectorAll(`.data-table td:nth-child(${columnIndex + 1})`);
+            cells.forEach(cell => {
+                cell.classList.add('selected');
+            });
+            
+            selectedColumn = columnIndex;
+            
+            // Highlight mapping items
+            document.querySelectorAll('.mapping-item').forEach(item => {
+                item.style.borderColor = '#ffd700';
+                item.style.background = '#fff8e1';
+            });
+        }
+        
+        function mapColumn(fieldName) {
+            if (selectedColumn === null) {
+                alert('Selecteer eerst een kolom uit de data preview');
+                return;
+            }
+            
+            // Update mapping
+            currentMapping[fieldName] = selectedColumn;
+            
+            // Update UI
+            const mappingItem = document.querySelector(`[data-field="${fieldName}"]`);
+            const mappedColumn = document.getElementById(`mapped-${fieldName}`);
+            const clearBtn = mappingItem.querySelector('.clear-btn');
+            
+            mappingItem.classList.add('mapped');
+            mappingItem.style.borderColor = '#4caf50';
+            mappingItem.style.background = '#e8f5e8';
+            
+            mappedColumn.textContent = `Kolom ${selectedColumn}`;
+            mappedColumn.classList.remove('hidden');
+            clearBtn.classList.remove('hidden');
+            
+            // Clear selection
+            selectedColumn = null;
+            document.querySelectorAll('.data-table td').forEach(td => {
+                td.classList.remove('selected');
+            });
+            
+            document.querySelectorAll('.mapping-item').forEach(item => {
+                item.style.borderColor = '#e0e0e0';
+                item.style.background = 'white';
+            });
+        }
+        
+        function clearMapping(fieldName) {
+            delete currentMapping[fieldName];
+            
+            const mappingItem = document.querySelector(`[data-field="${fieldName}"]`);
+            const mappedColumn = document.getElementById(`mapped-${fieldName}`);
+            const clearBtn = mappingItem.querySelector('.clear-btn');
+            
+            mappingItem.classList.remove('mapped');
+            mappingItem.style.borderColor = '#e0e0e0';
+            mappingItem.style.background = 'white';
+            
+            mappedColumn.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+        }
+        
+        function saveParser() {
+            const parserName = document.getElementById('parserName').value;
+            const filenamePattern = document.getElementById('filenamePattern').value;
+            const description = document.getElementById('description').value;
+            
+            if (!parserName) {
+                alert('Vul een parser naam in');
+                return;
+            }
+            
+            if (Object.keys(currentMapping).length === 0) {
+                alert('Wijs ten minste één kolom toe');
+                return;
+            }
+            
+            const configData = {
+                naam: parserName,
+                bestandsnaam_patroon: filenamePattern,
+                beschrijving: description,
+                kolom_mapping: currentMapping,
+                datum_formaten: 'DD-M-YYYY',
+                tijd_formaten: 'HHMM'
+            };
+            
+            const formData = new FormData();
+            formData.append('save_config', 'true');
+            formData.append('config_data', JSON.stringify(configData));
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            document.getElementById('saveBtn').disabled = true;
+            document.getElementById('saveBtn').textContent = '💾 Opslaan...';
+            
+            fetch('{% url "parser_configurator" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('statusMessage').innerHTML = 
+                        `<div class="status-success">✅ ${data.message}</div>`;
+                    
+                    // Reset form
+                    document.getElementById('parserName').value = '';
+                    document.getElementById('description').value = '';
+                    currentMapping = {};
+                    
+                    // Clear all mappings
+                    document.querySelectorAll('.mapping-item').forEach(item => {
+                        clearMapping(item.dataset.field);
+                    });
+                    
+                } else {
+                    document.getElementById('statusMessage').innerHTML = 
+                        `<div class="status-error">❌ ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('statusMessage').innerHTML = 
+                    `<div class="status-error">❌ Fout bij opslaan: ${error}</div>`;
+            })
+            .finally(() => {
+                document.getElementById('saveBtn').disabled = false;
+                document.getElementById('saveBtn').textContent = '💾 Parser Opslaan';
+            });
+        }
+        
+        // Add click handlers to mapping items
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.mapping-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const fieldName = this.dataset.field;
+                    mapColumn(fieldName);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

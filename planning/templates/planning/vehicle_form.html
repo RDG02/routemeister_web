@@ -1,0 +1,223 @@
+{% extends 'planning/base.html' %}
+
+{% block title %}{% if vehicle %}Bewerk Voertuig{% else %}Nieuw Voertuig{% endif %} - Routemeister{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>{% if vehicle %}✏️ Bewerk Voertuig{% else %}➕ Nieuw Voertuig{% endif %}</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-sections">
+            <!-- Basis Informatie -->
+            <div class="form-section">
+                <h3>📋 Basis Informatie</h3>
+                
+                <div class="form-group">
+                    <label for="referentie">Referentie:</label>
+                    <input type="text" name="referentie" id="referentie" value="{{ vehicle.referentie|default:'' }}" required>
+                    <small>Unieke referentie (bijv. W206)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="kenteken">Kenteken:</label>
+                    <input type="text" name="kenteken" id="kenteken" value="{{ vehicle.kenteken|default:'' }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="merk_model">Merk & Model:</label>
+                    <input type="text" name="merk_model" id="merk_model" value="{{ vehicle.merk_model|default:'' }}" required>
+                    <small>Bijv. VW Transporter</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="foto">Profiel Foto:</label>
+                    <input type="file" name="foto" id="foto" accept="image/*">
+                    {% if vehicle.foto %}
+                        <div class="current-photo">
+                            <img src="{{ vehicle.foto.url }}" alt="Huidige foto" style="max-width: 200px; margin-top: 10px;">
+                            <small>Huidige foto</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Capaciteit -->
+            <div class="form-section">
+                <h3>💺 Capaciteit</h3>
+                
+                <div class="form-group">
+                    <label for="aantal_zitplaatsen">Aantal Zitplaatsen:</label>
+                    <input type="number" name="aantal_zitplaatsen" id="aantal_zitplaatsen" value="{{ vehicle.aantal_zitplaatsen|default:7 }}" min="1" required>
+                    <small>Normale zitplaatsen</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="speciale_zitplaatsen">Speciale Zitplaatsen:</label>
+                    <input type="number" name="speciale_zitplaatsen" id="speciale_zitplaatsen" value="{{ vehicle.speciale_zitplaatsen|default:0 }}" min="0">
+                    <small>Rolstoel, etc.</small>
+                </div>
+            </div>
+            
+            <!-- Kosten en Tijden -->
+            <div class="form-section">
+                <h3>💰 Kosten en Tijden</h3>
+                
+                <div class="form-group">
+                    <label for="km_kosten_per_km">Km Kosten per km:</label>
+                    <input type="number" name="km_kosten_per_km" id="km_kosten_per_km" value="{{ vehicle.km_kosten_per_km|default:0.29 }}" step="0.01" min="0" required>
+                    <small>Kosten per kilometer in euro's</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maximale_rit_tijd">Maximale Rit Tijd:</label>
+                    <input type="number" name="maximale_rit_tijd" id="maximale_rit_tijd" value="{{ vehicle.maximale_rit_tijd|default:3600 }}" min="1" required>
+                    <small>Tijd in seconden (3600 = 1 uur)</small>
+                </div>
+            </div>
+            
+            <!-- Visuele Eigenschappen -->
+            <div class="form-section">
+                <h3>🎨 Visuele Eigenschappen</h3>
+                
+                <div class="form-group">
+                    <label for="kleur">Kleur:</label>
+                    <input type="color" name="kleur" id="kleur" value="{{ vehicle.kleur|default:'#3498db' }}">
+                    <small>Kleur voor planning overzicht</small>
+                </div>
+            </div>
+            
+            <!-- Status -->
+            <div class="form-section">
+                <h3>📊 Status</h3>
+                
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select name="status" id="status">
+                        <option value="beschikbaar" {% if vehicle.status == 'beschikbaar' %}selected{% endif %}>🟢 Beschikbaar</option>
+                        <option value="in_onderhoud" {% if vehicle.status == 'in_onderhoud' %}selected{% endif %}>🟠 In onderhoud</option>
+                        <option value="niet_beschikbaar" {% if vehicle.status == 'niet_beschikbaar' %}selected{% endif %}>🔴 Niet beschikbaar</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'vehicles_list' %}" class="btn btn-secondary">← Terug</a>
+            <button type="submit" class="btn btn-primary">
+                {% if vehicle %}💾 Bijwerken{% else %}➕ Aanmaken{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .form-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .form-section {
+        background: var(--routemeister-white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(28, 28, 27, 0.1);
+        border: 1px solid var(--routemeister-light-grey);
+    }
+    
+    .form-section h3 {
+        margin: 0 0 1rem 0;
+        font-size: 16pt;
+        color: var(--routemeister-asphalt);
+        border-bottom: 2px solid var(--routemeister-yellow);
+        padding-bottom: 0.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--routemeister-asphalt);
+        font-size: 12pt;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid var(--routemeister-light-grey);
+        border-radius: 6px;
+        font-size: 12pt;
+        font-family: 'Poppins', sans-serif;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--routemeister-yellow);
+    }
+    
+    .form-group input[type="color"] {
+        height: 50px;
+        padding: 0.5rem;
+    }
+    
+    .form-group input[type="file"] {
+        padding: 0.5rem;
+        border: 2px dashed var(--routemeister-light-grey);
+        background: var(--routemeister-off-white);
+    }
+    
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 9pt;
+        color: var(--routemeister-asphalt);
+        opacity: 0.7;
+    }
+    
+    .current-photo {
+        margin-top: 1rem;
+        text-align: center;
+    }
+    
+    .current-photo img {
+        border-radius: 8px;
+        border: 2px solid var(--routemeister-light-grey);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .form-actions .btn {
+        min-width: 120px;
+    }
+    
+    @media (max-width: 768px) {
+        .form-sections {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}

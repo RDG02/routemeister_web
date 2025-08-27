@@ -1,0 +1,427 @@
+{% extends 'planning/base.html' %}
+
+{% block title %}Patiënten Vandaag - Routemeister{% endblock %}
+
+{% block content %}
+<div class="patients-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>👥 Patiënten Vandaag</h1>
+            <p>{{ today|date:"d-m-Y" }} • {{ patients|length }} patiënten</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'home' %}" class="btn-secondary">← Terug naar Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Search Filter -->
+    <div class="search-section">
+        <form method="GET" class="search-form">
+            <div class="search-input-group">
+                <input type="text" name="search" value="{{ search_query }}" 
+                       placeholder="Zoek op naam, ID, plaats..." 
+                       class="search-input">
+                <button type="submit" class="search-btn">🔍</button>
+            </div>
+            {% if search_query %}
+                <a href="{% url 'patients_today' %}" class="clear-search">❌ Wissen</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Patients Overview -->
+    {% if timeslot_groups %}
+        <div class="timeslot-groups">
+            {% for key, group in timeslot_groups.items %}
+            <div class="timeslot-group">
+                <div class="group-header">
+                    <h2>{{ group.timeslot.naam }} - {{ group.route_type }}</h2>
+                    <div class="group-stats">
+                        <span class="patient-count">{{ group.patients|length }} patiënten</span>
+                        <span class="time-range">
+                            {% if group.route_type == 'Halen' %}
+                                {{ group.timeslot.heen_start_tijd|time:"H:i" }} - {{ group.timeslot.heen_eind_tijd|time:"H:i" }}
+                            {% else %}
+                                {{ group.timeslot.terug_start_tijd|time:"H:i" }} - {{ group.timeslot.terug_eind_tijd|time:"H:i" }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="patients-grid">
+                    {% for patient in group.patients %}
+                    <div class="patient-card">
+                        <div class="patient-header">
+                            <div class="patient-info">
+                                <h3>{{ patient.naam }}</h3>
+                                <div class="patient-details">
+                                    <span class="patient-id">ID: {{ patient.patient_id|default:"-" }}</span>
+                                    <span class="patient-location">{{ patient.plaats }}</span>
+                                </div>
+                            </div>
+                            <div class="patient-status">
+                                <span class="status-badge {{ patient.status }}">{{ patient.get_status_display }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="patient-details-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">📅 Ophaaltijd:</span>
+                                <span class="detail-value">{{ patient.ophaal_tijd|time:"H:i" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">🏥 Bestemming:</span>
+                                <span class="detail-value">{{ patient.bestemming }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">🚐 Voertuig:</span>
+                                <span class="detail-value">
+                                    {% if patient.toegewezen_voertuig %}
+                                        {{ patient.toegewezen_voertuig.referentie|default:patient.toegewezen_voertuig.kenteken }}
+                                    {% else %}
+                                        <span class="no-assignment">Niet toegewezen</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">📍 Adres:</span>
+                                <span class="detail-value">{{ patient.straat }}, {{ patient.postcode }} {{ patient.plaats }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if patient.rolstoel %}
+                        <div class="special-needs">
+                            <span class="wheelchair-badge">♿ Rolstoel</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-patients">
+            <div class="no-patients-content">
+                <div class="no-patients-icon">👥</div>
+                <h2>Geen patiënten gevonden</h2>
+                <p>
+                    {% if search_query %}
+                        Geen patiënten gevonden voor "{{ search_query }}"
+                    {% else %}
+                        Er zijn geen patiënten gepland voor vandaag
+                    {% endif %}
+                </p>
+                {% if search_query %}
+                    <a href="{% url 'patients_today' %}" class="btn-primary">Bekijk alle patiënten</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.patients-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header-content h1 {
+    margin: 0 0 0.5rem 0;
+    color: var(--routemeister-asphalt);
+    font-size: 2rem;
+}
+
+.header-content p {
+    margin: 0;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: var(--routemeister-asphalt);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: #2c3e50;
+}
+
+.search-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.search-input-group {
+    display: flex;
+    flex: 1;
+    max-width: 500px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px 0 0 8px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+    border-color: var(--routemeister-orange);
+}
+
+.search-btn {
+    padding: 0.75rem 1rem;
+    background: var(--routemeister-orange);
+    color: white;
+    border: none;
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s ease;
+}
+
+.search-btn:hover {
+    background: #e55a2b;
+}
+
+.clear-search {
+    padding: 0.5rem 1rem;
+    color: #666;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+}
+
+.clear-search:hover {
+    background: #f8f9fa;
+}
+
+.timeslot-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.timeslot-group {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.group-header {
+    background: var(--routemeister-off-white);
+    padding: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.group-header h2 {
+    margin: 0 0 0.5rem 0;
+    color: var(--routemeister-asphalt);
+    font-size: 1.3rem;
+}
+
+.group-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.patient-count {
+    font-weight: bold;
+    color: var(--routemeister-orange);
+}
+
+.patients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.patient-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.patient-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.patient-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.patient-info h3 {
+    margin: 0 0 0.25rem 0;
+    color: var(--routemeister-asphalt);
+    font-size: 1.1rem;
+}
+
+.patient-details {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-badge.nieuw { background: #fff3cd; color: #856404; }
+.status-badge.gepland { background: #d1ecf1; color: #0c5460; }
+.status-badge.onderweg { background: #d4edda; color: #155724; }
+.status-badge.afgeleverd { background: #cce5ff; color: #004085; }
+
+.patient-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-label {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: bold;
+}
+
+.detail-value {
+    font-size: 0.9rem;
+    color: var(--routemeister-asphalt);
+}
+
+.no-assignment {
+    color: #dc3545;
+    font-style: italic;
+}
+
+.special-needs {
+    margin-top: 0.5rem;
+}
+
+.wheelchair-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #e3f2fd;
+    color: #1976d2;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.no-patients {
+    background: white;
+    padding: 4rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.no-patients-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.no-patients h2 {
+    margin: 0 0 1rem 0;
+    color: var(--routemeister-asphalt);
+}
+
+.no-patients p {
+    margin: 0 0 2rem 0;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.btn-primary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--routemeister-orange);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: background 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: #e55a2b;
+}
+
+@media (max-width: 768px) {
+    .patients-container {
+        padding: 1rem;
+    }
+    
+    .page-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .search-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-input-group {
+        max-width: none;
+    }
+    
+    .patients-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .patient-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,548 @@
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Routemeister{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="header-content">
+        </div>
+        <div class="header-actions">
+            {% if active_session %}
+                <div class="active-session-warning">
+                    ⚠️ Actieve planning sessie: {{ active_session.name }}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Interactive Stats -->
+    <div class="stats-grid">
+        <div class="stat-card clickable" onclick="window.location.href='{% url 'patients_today' %}'">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <div class="stat-number">{{ today_patients }}</div>
+                <div class="stat-label">Patiënten Vandaag</div>
+                <div class="stat-hint">Klik om te bekijken</div>
+            </div>
+        </div>
+        
+        <div class="stat-card clickable" onclick="window.location.href='{% url 'vehicles_list' %}'">
+            <div class="stat-icon">🚐</div>
+            <div class="stat-content">
+                <div class="stat-number">{{ available_vehicles }}/{{ total_vehicles }}</div>
+                <div class="stat-label">Voertuigen Beschikbaar</div>
+                <div class="stat-hint">Klik om te beheren</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="action-section">
+        <h2>🚀 Snelle Acties</h2>
+        <div class="action-grid">
+            <a href="{% url 'planning_wizard_start' %}" class="action-card primary">
+                <div class="action-icon">
+                    <img src="{% static 'Routemeister Icon Yellow.png' %}" alt="Routemeister" class="routemeister-icon">
+                </div>
+                <div class="action-content">
+                    <h3>Nieuwe Planning</h3>
+                    <p>Start een nieuwe planning sessie</p>
+                </div>
+            </a>
+            
+            <a href="{% url 'planning_overview' %}" class="action-card">
+                <div class="action-icon">🗺️</div>
+                <div class="action-content">
+                    <h3>Bekijk Routes</h3>
+                    <p>Bekijk huidige routes en planning</p>
+                </div>
+            </a>
+            
+            <a href="{% url 'statistics' %}" class="action-card">
+                <div class="action-icon">📊</div>
+                <div class="action-content">
+                    <h3>Statistieken</h3>
+                    <p>Bekijk gedetailleerde statistieken</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Realtime Route Overview -->
+    {% if today_routes %}
+    <div class="section">
+        <h2>🗺️ Realtime Route Overzicht</h2>
+        <div class="route-overview">
+            <div class="map-container">
+                <div id="realtime-map" style="height: 400px; border-radius: 8px; overflow: hidden;"></div>
+            </div>
+            <div class="route-status">
+                <h3>Route Status</h3>
+                <div class="status-list">
+                    {% for route in today_routes %}
+                    <div class="status-item">
+                        <div class="vehicle-info">
+                            <div class="vehicle-color" style="background-color: {{ route.vehicle_color|default:'#F8CD46' }};"></div>
+                            <div>
+                                <strong>{{ route.vehicle_referentie|default:route.vehicle_name }}</strong>
+                                <div class="route-type">{{ route.route_type }}</div>
+                            </div>
+                        </div>
+                        <div class="route-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 60%;"></div>
+                            </div>
+                            <div class="progress-text">3/5 patiënten opgehaald</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Planning Sessions -->
+    {% if recent_sessions %}
+    <div class="section">
+        <h2>📅 Recente Planningen</h2>
+        <div class="session-list">
+            {% for session in recent_sessions %}
+            <div class="session-card">
+                <div class="session-header">
+                    <h3>{{ session.name }}</h3>
+                    <span class="session-status {{ session.status }}">{{ session.get_status_display }}</span>
+                </div>
+                <div class="session-details">
+                    <div class="session-date">{{ session.planning_date|date:"d-m-Y" }}</div>
+                    <div class="session-stats">
+                        {{ session.total_patients }} patiënten • {{ session.total_routes }} routes
+                    </div>
+                </div>
+                <div class="session-actions">
+                    <a href="{% url 'view_planning' session.id %}" class="btn-small">Bekijk</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header-content h1 {
+    margin: 0 0 0.5rem 0;
+    color: var(--routemeister-asphalt);
+    font-size: 2rem;
+}
+
+.header-content p {
+    margin: 0;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.active-session-warning {
+    background: #fff3cd;
+    color: #856404;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #ffeaa7;
+    font-weight: bold;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border-color: var(--routemeister-orange);
+}
+
+.stat-card.clickable {
+    cursor: pointer;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--routemeister-off-white);
+    border-radius: 12px;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--routemeister-asphalt);
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.stat-hint {
+    color: var(--routemeister-orange);
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.action-section {
+    margin-bottom: 2rem;
+}
+
+.action-section h2 {
+    color: var(--routemeister-asphalt);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.action-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.action-card.primary {
+    border-color: var(--routemeister-orange);
+    background: linear-gradient(135deg, var(--routemeister-orange), #e55a2b);
+    color: white;
+}
+
+.action-card.primary:hover {
+    background: linear-gradient(135deg, #e55a2b, var(--routemeister-orange));
+}
+
+.action-icon {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--routemeister-off-white);
+    border-radius: 12px;
+}
+
+.action-card.primary .action-icon {
+    background: rgba(255,255,255,0.2);
+}
+
+.routemeister-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.action-content h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+}
+
+.action-content p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.action-card.primary .action-content p {
+    color: rgba(255,255,255,0.8);
+}
+
+.section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.section h2 {
+    color: var(--routemeister-asphalt);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.route-overview {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.map-container {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.route-status {
+    background: var(--routemeister-off-white);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.route-status h3 {
+    margin: 0 0 1rem 0;
+    color: var(--routemeister-asphalt);
+    font-size: 1.1rem;
+}
+
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.status-item {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--routemeister-orange);
+}
+
+.vehicle-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.vehicle-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.route-type {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.route-progress {
+    margin-top: 0.5rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--routemeister-orange);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.session-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.session-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.session-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.session-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.session-status.concept { background: #fff3cd; color: #856404; }
+.session-status.processing { background: #d1ecf1; color: #0c5460; }
+.session-status.completed { background: #d4edda; color: #155724; }
+.session-status.published { background: #cce5ff; color: #004085; }
+
+.session-details {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.session-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    background: var(--routemeister-orange);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 1rem;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .route-overview {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Realtime Map
+    {% if today_routes %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const map = L.map('realtime-map').setView([50.8503, 7.1017], 10);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Add routes to map
+        {% for route in today_routes %}
+            {% if route.stops %}
+                const route{{ forloop.counter }} = L.polyline([
+                    {% for stop in route.stops %}
+                        [{{ stop.latitude|default:50.8503 }}, {{ stop.longitude|default:7.1017 }}]{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ], {
+                    color: '{{ route.vehicle_color|default:"#F8CD46" }}',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+                
+                // Add patient markers
+                {% for stop in route.stops %}
+                    {% if not stop.is_reha_center %}
+                    const marker{{ forloop.parentloop.counter }}_{{ forloop.counter }} = L.circleMarker([{{ stop.latitude|default:50.8503 }}, {{ stop.longitude|default:7.1017 }}], {
+                        radius: 8,
+                        fillColor: '{{ route.vehicle_color|default:"#F8CD46" }}',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+                    
+                    marker{{ forloop.parentloop.counter }}_{{ forloop.counter }}.bindPopup(`
+                        <strong>{{ stop.patient_name }}</strong><br>
+                        {{ stop.location_name }}<br>
+                        Tijd: {{ stop.pickup_time }}
+                    `);
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        
+        // Fit map to show all routes
+        if (map.getBounds().isValid()) {
+            map.fitBounds(map.getBounds(), { padding: [20, 20] });
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}
+

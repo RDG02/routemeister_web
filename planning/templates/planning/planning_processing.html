@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Verwerking - Routemeister</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #28a745;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-overview {
+            text-align: left;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .progress-item {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .progress-item:last-child {
+            border-bottom: none;
+        }
+        .progress-item.completed {
+            color: #28a745;
+        }
+        .progress-item.completed::before {
+            content: "✅ ";
+        }
+        .progress-item.processing {
+            color: #007bff;
+        }
+        .progress-item.processing::before {
+            content: "🔄 ";
+        }
+        .progress-item.pending {
+            color: #6c757d;
+        }
+        .progress-item.pending::before {
+            content: "⏳ ";
+        }
+        .progress-item.error {
+            color: #dc3545;
+        }
+        .progress-item.error::before {
+            content: "❌ ";
+        }
+        .timer {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #28a745;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .status-message {
+            font-size: 1.2em;
+            color: #007bff;
+            margin: 20px 0;
+        }
+        .real-time-stats {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% csrf_token %}
+        <h1>🔄 Planning wordt verwerkt...</h1>
+        <p>De Routemeister Planner is bezig met het optimaliseren van je routes.</p>
+        
+        <div class="timer" id="timer">00:00</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        
+        <div class="status-message" id="status-message">Initialiseren...</div>
+        
+        <div class="real-time-stats" id="real-time-stats">
+            <strong>📊 Real-time OptaPlanner Status:</strong><br>
+            Server: <span id="server-status">Controleren...</span><br>
+            Voertuigen: <span id="vehicle-count">0</span><br>
+            Locaties: <span id="location-count">0</span><br>
+            Routes: <span id="route-count">0</span><br>
+            Afstand: <span id="total-distance">0h 0m 0s</span><br>
+            Score: <span id="optimization-score">0</span>
+        </div>
+        
+        <div class="progress-overview">
+            <h3>📋 Planning Overzicht</h3>
+            
+            <div class="progress-item pending" id="step-server">
+                OptaPlanner server controleren...
+            </div>
+            
+            <div class="progress-item pending" id="step-clear">
+                Planner resetten...
+            </div>
+            
+            <div class="progress-item pending" id="step-depot">
+                Home locatie toevoegen...
+            </div>
+            
+            <div class="progress-item pending" id="step-vehicles">
+                Voertuigen voorbereiden...
+            </div>
+            
+            <div class="progress-item pending" id="step-patients">
+                Patiënten gegevens laden...
+            </div>
+            
+            <div class="progress-item pending" id="step-locations">
+                Locaties toevoegen...
+            </div>
+            
+            <div class="progress-item pending" id="step-optimize">
+                Routes optimaliseren...
+            </div>
+            
+            <div class="progress-item pending" id="step-complete">
+                Planning voltooien...
+            </div>
+        </div>
+        
+        <p><small>Je kunt deze pagina open laten staan. De status wordt real-time bijgewerkt.</small></p>
+    </div>
+
+    <script>
+        // Audio notification setup
+        let audioContext;
+        let audioBuffer;
+        let isAudioEnabled = true;
+        let hasPlayedNotification = false;
+        
+        // Initialize audio context
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                createNotificationSound();
+            } catch (e) {
+                console.log('Audio not supported:', e);
+                isAudioEnabled = false;
+            }
+        }
+        
+        // Create notification sound (pleasant chime)
+        function createNotificationSound() {
+            const sampleRate = audioContext.sampleRate;
+            const duration = 1.5; // 1.5 seconds
+            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            // Create a pleasant chime sound
+            for (let i = 0; i < buffer.length; i++) {
+                const t = i / sampleRate;
+                const frequency = 800 + 400 * Math.sin(t * 2 * Math.PI * 2); // Varying frequency
+                const amplitude = Math.exp(-t * 2) * 0.3; // Exponential decay
+                data[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
+            }
+            
+            audioBuffer = buffer;
+        }
+        
+        // Play notification sound
+        function playNotificationSound() {
+            if (!isAudioEnabled || !audioContext || !audioBuffer || hasPlayedNotification) return;
+            
+            try {
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+                
+                hasPlayedNotification = true;
+                
+                // Show visual notification
+                showVisualNotification();
+            } catch (e) {
+                console.log('Error playing sound:', e);
+            }
+        }
+        
+        // Show visual notification
+        function showVisualNotification() {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: bold;
+                animation: slideIn 0.5s ease-out;
+                max-width: 300px;
+            `;
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+                    <div>
+                        <div>🎉 Planning Voltooid!</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">Audio notificatie afgespeeld</div>
+                    </div>
+                </div>
+            `;
+            
+            // Add CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.5s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 5000);
+        }
+        
+        let startTime = Date.now();
+        let timerInterval = setInterval(updateTimer, 1000);
+        let statusInterval = setInterval(checkOptaPlannerStatus, 2000); // Check every 2 seconds
+        let planningStarted = false;
+        let planningComplete = false;
+        
+        // Get CSRF token from Django template
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                         document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+        
+        // Planning steps with real-time detection
+        const planningSteps = [
+            { id: 'step-server', status: 'pending', message: 'OptaPlanner server controleren...' },
+            { id: 'step-clear', status: 'pending', message: 'Planner resetten...' },
+            { id: 'step-depot', status: 'pending', message: 'Home locatie toevoegen...' },
+            { id: 'step-vehicles', status: 'pending', message: 'Voertuigen voorbereiden...' },
+            { id: 'step-patients', status: 'pending', message: 'Patiënten gegevens laden...' },
+            { id: 'step-locations', status: 'pending', message: 'Locaties toevoegen...' },
+            { id: 'step-optimize', status: 'pending', message: 'Routes optimaliseren...' },
+            { id: 'step-complete', status: 'pending', message: 'Planning voltooien...' }
+        ];
+        
+        function updateTimer() {
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            let minutes = Math.floor(elapsed / 60);
+            let seconds = elapsed % 60;
+            document.getElementById('timer').textContent = 
+                (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+        }
+        
+        function updateProgressBar(percentage) {
+            document.getElementById('progress').style.width = percentage + '%';
+        }
+        
+        function updateStepStatus(stepId, status, message) {
+            const element = document.getElementById(stepId);
+            if (element) {
+                element.className = `progress-item ${status}`;
+                element.textContent = message;
+            }
+        }
+        
+        function updateRealTimeStats(data) {
+            document.getElementById('server-status').textContent = data['server_alive'] ? '✅ Online' : '❌ Offline';
+            document.getElementById('vehicle-count').textContent = data['vehicle_count'];
+            document.getElementById('location-count').textContent = data['total_locations'];
+            document.getElementById('route-count').textContent = data['total_routes'];
+            document.getElementById('total-distance').textContent = data['distance'];
+            document.getElementById('optimization-score').textContent = data['score']['soft'];
+        }
+        
+        function checkOptaPlannerStatus() {
+            console.log('🔍 Checking OptaPlanner status at: /optaplanner-status/');
+            fetch('/optaplanner-status/')
+                .then(response => {
+                    console.log('📡 Response status:', response.status, response.statusText);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📊 OptaPlanner status:', data);
+                    
+                    if (data.status === 'not_started') {
+                        document.getElementById('status-message').textContent = '⏳ Planning wordt gestart...';
+                        updateStepStatus('step-server', 'processing', '🔄 Planning wordt gestart...');
+                        return;
+                    }
+                    
+                    if (data.status === 'complete') {
+                        // Planning is complete!
+                        updateStepStatus('step-server', 'completed', '✅ OptaPlanner server bereikbaar');
+                        updateStepStatus('step-clear', 'completed', '✅ Planner gereset');
+                        updateStepStatus('step-depot', 'completed', '✅ Home locatie toegevoegd');
+                        updateStepStatus('step-vehicles', 'completed', '✅ Voertuigen toegevoegd');
+                        updateStepStatus('step-patients', 'completed', '✅ Patiënten gegevens geladen');
+                        updateStepStatus('step-locations', 'completed', '✅ Locaties toegevoegd');
+                        updateStepStatus('step-optimize', 'completed', '✅ Routes geoptimaliseerd');
+                        updateStepStatus('step-complete', 'completed', '✅ Planning voltooid!');
+                        
+                        updateProgressBar(100);
+                        planningComplete = true;
+                        
+                        clearInterval(timerInterval);
+                        clearInterval(statusInterval);
+                        
+                        document.getElementById('status-message').textContent = '🎉 Planning voltooid!';
+                        document.getElementById('status-message').style.color = '#28a745';
+                        
+                        // Update stats
+                        document.getElementById('server-status').textContent = '✅ Online';
+                        document.getElementById('vehicle-count').textContent = data.results?.vehicleCount || 0;
+                        document.getElementById('location-count').textContent = data.results?.routes?.reduce((sum, route) => sum + (route.locations?.length || 0), 0) || 0;
+                        document.getElementById('route-count').textContent = data.results?.routes?.length || 0;
+                        document.getElementById('total-distance').textContent = data.results?.distance || '0h 0m 0s';
+                        
+                        // Play audio notification
+                        playNotificationSound();
+                        
+                        // Redirect naar resultaten na 3 seconden
+                        setTimeout(() => {
+                            window.location.href = '/planning/results/';
+                        }, 3000);
+                        return;
+                    }
+                    
+                    if (data.status === 'processing') {
+                        // Planning is in progress
+                        updateStepStatus('step-server', 'completed', '✅ OptaPlanner server bereikbaar');
+                        updateStepStatus('step-clear', 'completed', '✅ Planner gereset');
+                        updateStepStatus('step-depot', 'completed', '✅ Home locatie toegevoegd');
+                        
+                        const vehiclesAdded = data.vehicles_added || 0;
+                        const patientsAdded = data.patients_added || 0;
+                        
+                        if (vehiclesAdded > 0) {
+                            updateStepStatus('step-vehicles', 'completed', `✅ ${vehiclesAdded} voertuigen toegevoegd`);
+                        } else {
+                            updateStepStatus('step-vehicles', 'processing', '🔄 Voertuigen worden toegevoegd...');
+                        }
+                        
+                        if (patientsAdded > 0) {
+                            updateStepStatus('step-patients', 'completed', '✅ Patiënten gegevens geladen');
+                            updateStepStatus('step-locations', 'completed', `✅ ${patientsAdded} patiënten toegevoegd`);
+                            updateStepStatus('step-optimize', 'processing', '🔄 Routes worden geoptimaliseerd...');
+                        } else if (vehiclesAdded > 0) {
+                            updateStepStatus('step-patients', 'processing', '🔄 Patiënten worden verwerkt...');
+                            updateStepStatus('step-locations', 'pending', 'Locaties toevoegen...');
+                        }
+                        
+                        // Update progress bar based on steps completed
+                        let currentStep = 3; // server, clear, depot done
+                        if (vehiclesAdded > 0) currentStep++;
+                        if (patientsAdded > 0) currentStep += 2; // patients + locations
+                        
+                        const progressPercentage = (currentStep / planningSteps.length) * 100;
+                        updateProgressBar(progressPercentage);
+                        
+                        document.getElementById('status-message').textContent = data.message || 'Planning wordt verwerkt...';
+                        
+                        // Update stats
+                        document.getElementById('server-status').textContent = '✅ Online';
+                        document.getElementById('vehicle-count').textContent = data.vehicle_count || 0;
+                        document.getElementById('location-count').textContent = data.total_locations || 0;
+                        document.getElementById('route-count').textContent = data.vehicle_count || 0;
+                        
+                        return;
+                    }
+                    
+                    if (data.status === 'error') {
+                        console.error('OptaPlanner status error:', data.message);
+                        document.getElementById('status-message').textContent = '❌ Fout bij planning: ' + data.message;
+                        updateStepStatus('step-server', 'error', '❌ ' + data.message);
+                        return;
+                    }
+                    
+                    // Unknown status
+                    console.warn('Unknown OptaPlanner status:', data.status);
+                    document.getElementById('status-message').textContent = '⚠️ Onbekende status: ' + data.status;
+                })
+                .catch(error => {
+                    console.error('❌ Error checking OptaPlanner status:', error);
+                    console.error('❌ Error details:', error.message, error.stack);
+                    document.getElementById('status-message').textContent = '❌ Verbindingsfout met OptaPlanner: ' + error.message;
+                });
+        }
+        
+        // Start planning process when page loads
+        window.addEventListener('load', function() {
+            console.log('🚀 Page loaded, starting planning process...');
+            
+            // Get CSRF token from cookie
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            // Start the actual planning process
+            console.log('🚀 Sending planning request to /start-optaplanner-planning/');
+            console.log('🔑 CSRF Token:', csrfToken);
+            fetch('/start-optaplanner-planning/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'start_planning=true'
+            })
+            .then(response => {
+                console.log('📡 Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('📡 Response data:', data);
+                if (data.status === 'success') {
+                    planningStarted = true;
+                    console.log('✅ Planning started:', data.session_id);
+                } else {
+                    console.error('❌ Failed to start planning:', data.message);
+                    document.getElementById('status-message').textContent = '❌ Fout bij starten planning: ' + data.message;
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error starting planning:', error);
+                document.getElementById('status-message').textContent = '❌ Verbindingsfout bij starten planning';
+            });
+        });
+    </script>
+</body>
+</html>

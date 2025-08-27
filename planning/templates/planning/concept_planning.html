@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concept Planning - Routemeister</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.css">
+    <style>
+        :root {
+            --routemeister-orange: #ff6b35;
+            --routemeister-yellow: #F8CD46;
+            --routemeister-asphalt: #2c3e50;
+            --concept-bg: #fff3e0;
+            --concept-border: #ff9800;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--concept-bg);
+            border-top: 5px solid var(--concept-border);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .concept-header {
+            background: linear-gradient(135deg, var(--routemeister-orange), #ff8a50);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .concept-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .concept-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .stats-bar {
+            background: white;
+            padding: 0.5rem 1.5rem;
+            border-bottom: 2px solid var(--concept-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: bold;
+        }
+
+        .stat-value {
+            background: var(--routemeister-orange);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 40% 60%;
+            height: calc(100vh - 120px);
+            gap: 0;
+        }
+
+        .map-panel {
+            background: white;
+            border-right: 2px solid var(--concept-border);
+        }
+
+        .map-header {
+            background: var(--routemeister-asphalt);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .map-container {
+            height: calc(100% - 40px);
+            width: 100%;
+        }
+
+        .planning-panel {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .planning-header {
+            background: var(--routemeister-asphalt);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .planning-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .vehicle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .vehicle-column {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 300px;
+        }
+
+        .vehicle-header {
+            padding: 0.75rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .vehicle-color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .vehicle-warning {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+
+        .vehicle-content {
+            padding: 0.5rem;
+            min-height: 200px;
+        }
+
+        .patient-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+
+        .patient-item:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .patient-item.selected {
+            background: #007bff;
+            color: white;
+        }
+
+        .patient-item.wheelchair {
+            background: #28a745;
+            color: white;
+        }
+
+        .patient-name {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .patient-time {
+            font-size: 0.7rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .patient-details {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .timeslot-section {
+            margin-bottom: 1rem;
+        }
+
+        .timeslot-header {
+            background: var(--routemeister-yellow);
+            color: var(--routemeister-asphalt);
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .timeslot-header.bringen {
+            background: #6c757d;
+            color: white;
+        }
+
+        .unassigned-section {
+            background: #f8f9fa;
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .unassigned-header {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .unassigned-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-primary {
+            background: var(--routemeister-orange);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #e55a2b;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .action-buttons {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 1000;
+        }
+
+        .error-message {
+            padding: 1rem;
+            text-align: center;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            margin: 1rem;
+        }
+
+        .error-message h3 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-message p {
+            color: #856404;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .map-panel {
+                height: 400px;
+                border-right: none;
+                border-bottom: 2px solid var(--concept-border);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Concept Planning Header -->
+    <div class="concept-header">
+        <h1 class="concept-title">
+            <i class="fas fa-edit"></i>
+            Concept Planning
+            <span class="concept-badge">CONCEPT FASE</span>
+            <span class="concept-badge">{{ planning_date|date:"d-m-Y" }}</span>
+        </h1>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <span>Last updated: <span id="lastUpdated">{{ "now"|date:"H:i:s" }}</span></span>
+        </div>
+    </div>
+
+    <!-- Statistics Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <i class="fas fa-users"></i>
+            Patiënten: <span class="stat-value">{{ total_patients }}</span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-car"></i>
+            Voertuigen: <span class="stat-value">{{ total_vehicles }}</span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-clock"></i>
+            Tijdblokken: <span class="stat-value">{{ total_timeslots }}</span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-route"></i>
+            Routes: <span class="stat-value">{{ total_routes }}</span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-calendar"></i>
+            {{ planning_date|date:"d-m-Y" }}
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Panel: Map -->
+        <div class="map-panel">
+            <div class="map-header">
+                <i class="fas fa-map"></i>
+                Route Kaart
+            </div>
+            <div id="map" class="map-container"></div>
+        </div>
+
+        <!-- Right Panel: Planning Interface -->
+        <div class="planning-panel">
+            <div class="planning-header">
+                <div>
+                    <i class="fas fa-list"></i>
+                    Planning Overzicht
+                </div>
+                <div>
+                    Client progress: <span id="clientProgress">{{ total_patients }}</span>/{{ total_patients }}
+                </div>
+            </div>
+
+            <div class="planning-content">
+                {% if total_patients == 0 %}
+                <div class="error-message">
+                    <h3>⚠️ Geen patiënten gevonden</h3>
+                    <p>Er zijn geen patiënten gevonden voor de geselecteerde datum ({{ planning_date|date:"d-m-Y" }}).</p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <a href="{% url 'new_planning' %}" class="btn btn-primary">
+                            📋 Nieuwe Planning
+                        </a>
+                        <a href="{% url 'route_results' %}" class="btn btn-secondary">
+                            🗺️ Bestaande Routes
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+
+                <!-- Unassigned Patients -->
+                {% if unassigned_patients %}
+                <div class="unassigned-section">
+                    <div class="unassigned-header">
+                        <i class="fas fa-user-times"></i>
+                        Niet-toegewezen Patiënten ({{ unassigned_patients.count }})
+                    </div>
+                    <div class="unassigned-grid" id="unassigned-container">
+                        {% for patient in unassigned_patients %}
+                        <div class="patient-item" data-patient-id="{{ patient.id }}" data-timeslot="" data-vehicle="">
+                            <div class="patient-name">{{ patient.naam }}</div>
+                            <div class="patient-time">
+                                <i class="fas fa-clock"></i>
+                                {{ patient.ophaal_tijd|time:"H:i" }}
+                            </div>
+                            <div class="patient-details">
+                                {{ patient.plaats }}
+                                {% if patient.rolstoel %}<i class="fas fa-wheelchair" title="Rolstoel"></i>{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Vehicle Columns -->
+                <div class="vehicle-grid">
+                    {% for vehicle in selected_vehicles %}
+                    <div class="vehicle-column">
+                        <div class="vehicle-header" style="background-color: {{ vehicle.kleur }}; color: white;">
+                            <div class="vehicle-color-indicator" style="background-color: {{ vehicle.kleur }};"></div>
+                            {{ vehicle.referentie }}
+                            {% if vehicle.assigned_patients.count > vehicle.aantal_zitplaatsen %}
+                            <div class="vehicle-warning">
+                                <i class="fas fa-exclamation"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="vehicle-content" data-vehicle-id="{{ vehicle.id }}">
+                            {% for patient in vehicle.assigned_patients %}
+                            <div class="patient-item {% if patient.rolstoel %}wheelchair{% endif %}" 
+                                 data-patient-id="{{ patient.id }}" 
+                                 data-timeslot="{% if patient.halen_tijdblok %}{{ patient.halen_tijdblok.id }}{% elif patient.bringen_tijdblok %}{{ patient.bringen_tijdblok.id }}{% endif %}" 
+                                 data-vehicle="{{ vehicle.id }}">
+                                <div class="patient-name">{{ patient.naam }}</div>
+                                <div class="patient-time">
+                                    <i class="fas fa-clock"></i>
+                                    {% if patient.halen_tijdblok %}
+                                        {{ patient.ophaal_tijd|time:"H:i" }}
+                                    {% elif patient.bringen_tijdblok %}
+                                        {{ patient.eind_behandel_tijd|time:"H:i" }}
+                                    {% endif %}
+                                </div>
+                                <div class="patient-details">
+                                    {{ patient.plaats }}
+                                    {% if patient.rolstoel %}<i class="fas fa-wheelchair" title="Rolstoel"></i>{% endif %}
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="text-align: center; color: #999; font-style: italic; padding: 1rem;">
+                                Geen patiënten toegewezen
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Timeslot Sections -->
+                {% for timeslot_group in halen_timeslots %}
+                <div class="timeslot-section">
+                    <div class="timeslot-header">
+                        <div>
+                            <i class="fas fa-arrow-right"></i>
+                            {{ timeslot_group.timeslot.naam }}
+                            ({{ timeslot_group.timeslot.heen_start_tijd|time:"H:i" }} - {{ timeslot_group.timeslot.heen_eind_tijd|time:"H:i" }})
+                        </div>
+                        <div>{{ timeslot_group.patient_count }} patiënten</div>
+                    </div>
+                    <div class="vehicle-grid">
+                        {% for vehicle in timeslot_group.vehicles %}
+                        <div class="vehicle-column">
+                            <div class="vehicle-header" style="background-color: {{ vehicle.kleur }}; color: white;">
+                                <div class="vehicle-color-indicator" style="background-color: {{ vehicle.kleur }};"></div>
+                                {{ vehicle.referentie }}
+                            </div>
+                            <div class="vehicle-content" data-vehicle-id="{{ vehicle.id }}" data-timeslot="{{ timeslot_group.timeslot.id }}">
+                                {% for patient in vehicle.assigned_patients %}
+                                <div class="patient-item {% if patient.rolstoel %}wheelchair{% endif %}" 
+                                     data-patient-id="{{ patient.id }}" 
+                                     data-timeslot="{{ timeslot_group.timeslot.id }}" 
+                                     data-vehicle="{{ vehicle.id }}">
+                                    <div class="patient-name">{{ patient.naam }}</div>
+                                    <div class="patient-time">
+                                        <i class="fas fa-clock"></i>
+                                        {{ patient.ophaal_tijd|time:"H:i" }}
+                                    </div>
+                                    <div class="patient-details">
+                                        {{ patient.plaats }}
+                                        {% if patient.rolstoel %}<i class="fas fa-wheelchair" title="Rolstoel"></i>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% for timeslot_group in bringen_timeslots %}
+                <div class="timeslot-section">
+                    <div class="timeslot-header bringen">
+                        <div>
+                            <i class="fas fa-arrow-left"></i>
+                            {{ timeslot_group.timeslot.naam }}
+                            ({{ timeslot_group.timeslot.terug_start_tijd|time:"H:i" }} - {{ timeslot_group.timeslot.terug_eind_tijd|time:"H:i" }})
+                        </div>
+                        <div>{{ timeslot_group.patient_count }} patiënten</div>
+                    </div>
+                    <div class="vehicle-grid">
+                        {% for vehicle in timeslot_group.vehicles %}
+                        <div class="vehicle-column">
+                            <div class="vehicle-header" style="background-color: {{ vehicle.kleur }}; color: white;">
+                                <div class="vehicle-color-indicator" style="background-color: {{ vehicle.kleur }};"></div>
+                                {{ vehicle.referentie }}
+                            </div>
+                            <div class="vehicle-content" data-vehicle-id="{{ vehicle.id }}" data-timeslot="{{ timeslot_group.timeslot.id }}">
+                                {% for patient in vehicle.assigned_patients %}
+                                <div class="patient-item {% if patient.rolstoel %}wheelchair{% endif %}" 
+                                     data-patient-id="{{ patient.id }}" 
+                                     data-timeslot="{{ timeslot_group.timeslot.id }}" 
+                                     data-vehicle="{{ vehicle.id }}">
+                                    <div class="patient-name">{{ patient.naam }}</div>
+                                    <div class="patient-time">
+                                        <i class="fas fa-clock"></i>
+                                        {{ patient.eind_behandel_tijd|time:"H:i" }}
+                                    </div>
+                                    <div class="patient-details">
+                                        {{ patient.plaats }}
+                                        {% if patient.rolstoel %}<i class="fas fa-wheelchair" title="Rolstoel"></i>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-secondary" onclick="window.location.href='{% url 'route_results' %}'">
+            <i class="fas fa-clock"></i>
+            Bekijk Resultaten
+        </button>
+        <button class="btn btn-primary" onclick="saveConcept()">
+            <i class="fas fa-save"></i>
+            Concept Opslaan
+        </button>
+        <button class="btn btn-secondary" onclick="exportCSV()">
+            <i class="fas fa-download"></i>
+            CSV Export
+        </button>
+        <button class="btn btn-success" onclick="approveAndPublish()">
+            <i class="fas fa-check"></i>
+            Goedkeuren & Publiceren
+        </button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([50.8503, 7.1017], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Initialize Sortable for drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            // Make all vehicle content areas sortable
+            const vehicleContents = document.querySelectorAll('.vehicle-content');
+            vehicleContents.forEach(container => {
+                new Sortable(container, {
+                    group: 'patients',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
+                    onEnd: function(evt) {
+                        updatePatientAssignment(evt);
+                    }
+                });
+            });
+
+            // Make unassigned container sortable
+            const unassignedContainer = document.getElementById('unassigned-container');
+            if (unassignedContainer) {
+                new Sortable(unassignedContainer, {
+                    group: 'patients',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
+                    onEnd: function(evt) {
+                        updatePatientAssignment(evt);
+                    }
+                });
+            }
+
+            // Update last updated time
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+            }, 1000);
+        });
+
+        function updatePatientAssignment(evt) {
+            const patientItem = evt.item;
+            const newContainer = evt.to;
+            const oldContainer = evt.from;
+            
+            const patientId = patientItem.dataset.patientId;
+            const newVehicleId = newContainer.dataset.vehicleId;
+            const newTimeslotId = newContainer.dataset.timeslotId;
+            
+            // Update patient data attributes
+            patientItem.dataset.vehicle = newVehicleId || '';
+            patientItem.dataset.timeslot = newTimeslotId || '';
+            
+            // Update statistics
+            updateStatistics();
+            
+            // Log the change
+            console.log(`Patient ${patientId} moved to vehicle ${newVehicleId}, timeslot ${newTimeslotId}`);
+        }
+
+        function updateStatistics() {
+            // Count assigned patients
+            const assignedPatients = document.querySelectorAll('.patient-item[data-vehicle]').length;
+            const totalPatients = document.querySelectorAll('.patient-item').length;
+            
+            // Update progress
+            document.getElementById('clientProgress').textContent = assignedPatients;
+            
+            // Update routes count
+            const vehicleColumns = document.querySelectorAll('.vehicle-column');
+            let activeRoutes = 0;
+            vehicleColumns.forEach(column => {
+                const patients = column.querySelectorAll('.patient-item');
+                if (patients.length > 0) {
+                    activeRoutes++;
+                }
+            });
+            
+            // Update display
+            document.querySelector('.stat-value[data-stat="routes"]').textContent = activeRoutes;
+        }
+
+        function saveConcept() {
+            // Collect all patient assignments
+            const assignments = [];
+            document.querySelectorAll('.patient-item').forEach(item => {
+                assignments.push({
+                    patientId: item.dataset.patientId,
+                    vehicleId: item.dataset.vehicle,
+                    timeslotId: item.dataset.timeslot
+                });
+            });
+            
+            // For now, just show a success message
+            console.log('Saving assignments:', assignments);
+            alert('Concept planning opgeslagen! (Functionaliteit wordt geïmplementeerd)');
+            
+            // TODO: Implement actual save functionality
+            // fetch('/api/save-concept-planning/', {
+            //     method: 'POST',
+            //     headers: {
+            //         'Content-Type': 'application/json',
+            //         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            //     },
+            //     body: JSON.stringify({ assignments: assignments })
+            // })
+            // .then(response => response.json())
+            // .then(data => {
+            //     if (data.success) {
+            //         alert('Concept planning opgeslagen!');
+            //     } else {
+            //         alert('Fout bij opslaan: ' + data.error);
+            //     }
+            // })
+            // .catch(error => {
+            //     console.error('Error:', error);
+            //     alert('Fout bij opslaan van concept planning');
+            // });
+        }
+
+        function exportCSV() {
+            // Implementation for CSV export
+            alert('CSV export functionaliteit wordt geïmplementeerd...');
+        }
+
+        function approveAndPublish() {
+            // Implementation for approve and publish
+            alert('Goedkeuren en publiceren functionaliteit wordt geïmplementeerd...');
+        }
+
+        // Add CSRF token for AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!csrfToken) {
+                const token = document.createElement('meta');
+                token.name = 'csrfmiddlewaretoken';
+                token.content = '{{ csrf_token }}';
+                document.head.appendChild(token);
+            }
+        });
+    </script>
+</body>
+</html>

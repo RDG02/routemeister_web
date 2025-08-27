@@ -1,0 +1,449 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routes Optimaliseren - Routemeister</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px; /* 25% kleiner van 20px */
+            font-size: 0.75em; /* 25% kleiner */
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 11px; /* 25% kleiner van 15px */
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1); /* 25% kleiner van 20px 40px */
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 22px; /* 25% kleiner van 30px */
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.875em; /* 25% kleiner van 2.5em */
+            margin-bottom: 8px; /* 25% kleiner van 10px */
+        }
+
+        .content {
+            padding: 30px; /* 25% kleiner van 40px */
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 8px; /* 25% kleiner van 10px */
+            padding: 15px; /* 25% kleiner van 20px */
+            margin-bottom: 22px; /* 25% kleiner van 30px */
+            border-left: 4px solid #007bff; /* 25% kleiner van 5px */
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 25% kleiner van 200px */
+            gap: 15px; /* 25% kleiner van 20px */
+            margin: 15px 0; /* 25% kleiner van 20px */
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px; /* 25% kleiner van 20px */
+            border-radius: 8px; /* 25% kleiner van 10px */
+            text-align: center;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1); /* 25% kleiner van 4px 6px */
+        }
+
+        .stat-card h3 {
+            color: #007bff;
+            font-size: 1.5em; /* 25% kleiner van 2em */
+            margin-bottom: 8px; /* 25% kleiner van 10px */
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 11px 22px; /* 25% kleiner van 15px 30px */
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px; /* 25% kleiner van 8px */
+            font-weight: bold;
+            font-size: 12px; /* 25% kleiner van 16px */
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 8px; /* 25% kleiner van 10px */
+        }
+
+        .btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .planner-toggle {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .toggle-option {
+            background: white;
+            border: 3px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .toggle-option:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,123,255,0.2);
+        }
+
+        .toggle-option.selected {
+            border-color: #007bff;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .toggle-option input[type="radio"] {
+            display: none;
+        }
+
+        .toggle-option h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .toggle-option p {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .toggle-option.selected p {
+            opacity: 1;
+        }
+
+        .planner-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .comparison-card h4 {
+            color: #007bff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .comparison-features {
+            list-style: none;
+            padding: 0;
+        }
+
+        .comparison-features li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .comparison-features li:before {
+            content: "✅ ";
+            color: #28a745;
+        }
+
+        .optaplanner-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Routes Plannen</h1>
+            <p>Automatische route planning met GPS optimalisatie</p>
+        </div>
+
+        <div class="content">
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} {% if message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% elif message.tags == 'error' %}error{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if show_toggle %}
+            <!-- Planner Toggle -->
+            <div class="planner-toggle">
+                <h3>🎛️ Kies je Route Planner</h3>
+                <p>Selecteer de route planner die je wilt gebruiken:</p>
+                
+                <form method="post" id="plannerForm">
+                    {% csrf_token %}
+                    <div class="toggle-container">
+                        <label class="toggle-option" onclick="selectPlanner('simple')">
+                            <input type="radio" name="planner_type" value="simple" checked>
+                            <h3>🚀 Simple Router</h3>
+                            <p>Snel en eenvoudig<br>Geen externe dependencies<br>Basis optimalisatie</p>
+                        </label>
+                        
+                        <label class="toggle-option" onclick="selectPlanner('optaplanner')">
+                            <input type="radio" name="planner_type" value="optaplanner" {% if not optaplanner_enabled %}disabled{% endif %}>
+                            <h3>⚡ OptaPlanner</h3>
+                            <p>Professionele optimalisatie<br>Complexe constraints<br>Externe server vereist</p>
+                        </label>
+                    </div>
+                    
+                    <div class="planner-comparison">
+                        <div class="comparison-card">
+                            <h4>🚀 Simple Router</h4>
+                            <ul class="comparison-features">
+                                <li>Snelle berekening</li>
+                                <li>Geen externe server</li>
+                                <li>Basis GPS optimalisatie</li>
+                                <li>Eenvoudig te gebruiken</li>
+                                <li>Direct beschikbaar</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="comparison-card">
+                            <h4>⚡ OptaPlanner</h4>
+                            <ul class="comparison-features">
+                                <li>Geavanceerde optimalisatie</li>
+                                <li>Complexe constraints</li>
+                                <li>Professionele algoritmes</li>
+                                <li>Betere route kwaliteit</li>
+                                <li>Externe server vereist</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button type="submit" class="btn btn-success">🚀 Start Route Planning</button>
+                    </div>
+                </form>
+            </div>
+            {% else %}
+            <!-- Route Planner Status -->
+            <div class="optaplanner-info">
+                <h3>🗺️ Route Planner Status</h3>
+                <p><strong>Type:</strong> {{ route_planner_type }}</p>
+                <p><strong>Status:</strong> 
+                    <span style="color: #28a745;">✅ Klaar voor gebruik</span>
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Current Data Overview -->
+            <div class="status-box">
+                <h3>📊 Huidige Planning Status</h3>
+                <div class="status-grid">
+                    <div class="stat-card">
+                        <h3>{{ available_vehicles.count }}</h3>
+                        <p>Beschikbare Voertuigen</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>{{ assigned_patients.count }}</h3>
+                        <p>Toegewezen Patiënten</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicles Overview -->
+            {% if available_vehicles %}
+            <div class="status-box">
+                <h3>🚐 Beschikbare Voertuigen</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;">
+                    {% for vehicle in available_vehicles %}
+                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                        <div style="font-weight: bold; color: #2c3e50;">{{ vehicle.kenteken }}</div>
+                        <div style="font-size: 14px; color: #6c757d;">{{ vehicle.merk_model }}</div>
+                        <div style="font-size: 12px; color: #28a745;">
+                            👥 {{ vehicle.aantal_zitplaatsen }} zitplaatsen
+                                                          {% if vehicle.speciale_zitplaatsen > 0 %}| ♿ {{ vehicle.speciale_zitplaatsen }} speciaal{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Assigned Patients Overview -->
+            {% if assigned_patients %}
+            <div class="status-box">
+                <h3>🏥 Toegewezen Patiënten</h3>
+                <p>{{ assigned_patients.count }} patiënten klaar voor route optimalisatie</p>
+                <div style="max-height: 200px; overflow-y: auto; margin-top: 15px;">
+                    {% for patient in assigned_patients %}
+                    <div style="background: white; padding: 10px; margin: 5px 0; border-radius: 5px; border-left: 3px solid #28a745;">
+                        <strong>{{ patient.naam }}</strong> - {{ patient.plaats }}
+                        <small style="color: #6c757d;">
+                            ({{ patient.toegewezen_tijdblok.naam }} - {{ patient.ophaal_tijd|date:"H:i" }})
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                {% if available_vehicles and assigned_patients %}
+                    <form method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">
+                            🚀 Routes Plannen
+                        </button>
+                    </form>
+                {% else %}
+                    {% if not available_vehicles %}
+                        <div class="warning">
+                            ⚠️ Geen beschikbare voertuigen gevonden. Voeg voertuigen toe via de admin interface.
+                        </div>
+                    {% endif %}
+                    {% if not assigned_patients %}
+                        <div class="warning">
+                            ⚠️ Geen toegewezen patiënten gevonden. Wijs eerst patiënten toe aan tijdblokken.
+                        </div>
+                    {% endif %}
+                    <!-- Simpele route planner is altijd beschikbaar -->
+                {% endif %}
+
+                <a href="{% url 'home' %}" class="btn btn-secondary">
+                    ← Terug naar Dashboard
+                </a>
+            </div>
+
+            <!-- Instructions -->
+            <div class="optaplanner-info">
+                <h4>💡 Instructies</h4>
+                <ol>
+                    <li>Zorg dat OptaPlanner server draait op {{ optaplanner_url }}</li>
+                    <li>Controleer of er voertuigen beschikbaar zijn</li>
+                    <li>Controleer of patiënten zijn toegewezen aan tijdblokken</li>
+                    <li>Klik op "Start Route Optimalisatie" om te beginnen</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function selectPlanner(type) {
+            // Remove selected class from all options
+            document.querySelectorAll('.toggle-option').forEach(function(option) {
+                option.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked option
+            event.currentTarget.classList.add('selected');
+            
+            // Check the radio button
+            document.querySelector('input[value="' + type + '"]').checked = true;
+            
+            // Update button text based on selection
+            var submitBtn = document.querySelector('.btn-success');
+            if (type === 'optaplanner') {
+                submitBtn.textContent = '⚡ Start OptaPlanner Planning';
+                submitBtn.style.background = '#6f42c1';
+            } else {
+                submitBtn.textContent = '🚀 Start Simple Planning';
+                submitBtn.style.background = '#28a745';
+            }
+        }
+        
+        // Initialize with Simple Router selected
+        document.addEventListener('DOMContentLoaded', function() {
+            selectPlanner('simple');
+        });
+    </script>
+</body>
+</html>

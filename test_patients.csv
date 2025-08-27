@@ -1,0 +1,6 @@
+naam,straat,postcode,plaats,ophaal_tijd,eind_behandel_tijd,status,latitude,longitude,rolstoel
+Test Patient 1,Teststraat 1,12345,Bonn,2025-08-21 08:00:00,2025-08-21 16:00:00,nieuw,7.1,50.7,False
+Test Patient 2,Teststraat 2,12346,Bonn,2025-08-21 08:30:00,2025-08-21 16:30:00,nieuw,7.11,50.71,False
+Test Patient 3,Teststraat 3,12347,Bonn,2025-08-21 09:00:00,2025-08-21 17:00:00,nieuw,7.12,50.72,False
+Test Patient 4,Teststraat 4,12348,Bonn,2025-08-21 09:30:00,2025-08-21 17:30:00,nieuw,7.13,50.73,False
+Test Patient 5,Teststraat 5,12349,Bonn,2025-08-21 10:00:00,2025-08-21 18:00:00,nieuw,7.14,50.74,False

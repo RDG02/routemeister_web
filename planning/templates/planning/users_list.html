@@ -1,0 +1,65 @@
+{% extends 'planning/base.html' %}
+
+{% block title %}Gebruikers - Routemeister{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>👥 Gebruikers Beheer</h1>
+    <a href="{% url 'user_create' %}" class="btn btn-primary">➕ Nieuwe Gebruiker</a>
+</div>
+
+<div class="user-grid">
+    {% for user in users %}
+    <div class="user-card">
+        <h3>{{ user.username }}</h3>
+        <p><strong>Email:</strong> {{ user.email|default:"Geen email" }}</p>
+        <p><strong>Status:</strong> 
+            <span class="{% if user.is_active %}status-active{% else %}status-inactive{% endif %}">
+                {% if user.is_active %}Actief{% else %}Inactief{% endif %}
+            </span>
+        </p>
+        <p><strong>Staff:</strong> {% if user.is_staff %}Ja{% else %}Nee{% endif %}</p>
+        
+        <div class="user-actions">
+            <a href="{% url 'user_edit' user.id %}" class="btn btn-secondary">✏️ Bewerken</a>
+            <a href="{% url 'user_delete' user.id %}" class="btn btn-danger" onclick="return confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')">🗑️ Verwijderen</a>
+        </div>
+    </div>
+    {% empty %}
+    <p>Geen gebruikers gevonden. <a href="{% url 'user_create' %}">Voeg je eerste gebruiker toe</a>.</p>
+    {% endfor %}
+</div>
+
+<style>
+    .user-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .user-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    .user-card h3 {
+        margin-top: 0;
+        color: #495057;
+    }
+    .user-actions {
+        margin-top: 15px;
+    }
+    .user-actions a {
+        margin-right: 10px;
+    }
+    .status-active {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .status-inactive {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

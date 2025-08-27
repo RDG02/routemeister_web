@@ -1,0 +1,643 @@
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <!-- Progress Bar -->
+    <div class="wizard-progress">
+        <div class="progress-step active">
+            <div class="step-number">1</div>
+            <div class="step-label">Upload & Preview</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <div class="step-number">2</div>
+            <div class="step-label">Toewijzing & Routes</div>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-section">
+        <h1>📁 Upload & Preview</h1>
+        <p class="section-description">
+            Upload je CSV of SLK bestand. De wizard detecteert automatisch het formaat en toont een preview.
+        </p>
+
+        <!-- File Upload Area -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-content">
+                <div class="upload-icon">📁</div>
+                <h3>Sleep je bestand hierheen</h3>
+                <p>of klik om een bestand te kiezen</p>
+                <p class="file-types">Ondersteunde formaten: .csv, .slk</p>
+                
+                <input type="file" id="fileInput" accept=".csv,.slk" style="display: none;">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    <span class="btn-icon">📂</span>
+                    Bestand Kiezen
+                </button>
+            </div>
+        </div>
+
+        <!-- Upload Progress -->
+        <div class="upload-progress" id="uploadProgress" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Uploaden...</div>
+        </div>
+
+        <!-- Upload Results -->
+        <div class="upload-results" id="uploadResults" style="display: none;">
+            <div class="result-card success">
+                <div class="result-icon">✅</div>
+                <div class="result-content">
+                    <h3>Upload Succesvol!</h3>
+                    <div class="result-details" id="resultDetails"></div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="showPreview()">
+                    <span class="btn-icon">👁️</span>
+                    Bekijk Preview
+                </button>
+                <button class="btn btn-primary" onclick="continueToNextStep()">
+                    <span class="btn-icon">➡️</span>
+                    Volgende Stap
+                </button>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div class="upload-error" id="uploadError" style="display: none;">
+            <div class="error-card">
+                <div class="error-icon">❌</div>
+                <div class="error-content">
+                    <h3>Upload Fout</h3>
+                    <p id="errorMessage"></p>
+                    <button class="btn btn-secondary" onclick="retryUpload()">
+                        <span class="btn-icon">🔄</span>
+                        Opnieuw Proberen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="help-section">
+        <h3>💡 Tips voor uploaden</h3>
+        <div class="tips-grid">
+            <div class="tip-card">
+                <div class="tip-icon">📋</div>
+                <h4>Bestandsformaat</h4>
+                <p>Gebruik CSV of SLK bestanden met patiëntgegevens</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">🔍</div>
+                <h4>Auto-detectie</h4>
+                <p>De wizard detecteert automatisch kolommen en formaten</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">✅</div>
+                <h4>Validatie</h4>
+                <p>Data wordt automatisch gevalideerd voor fouten</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// File upload handling
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadResults = document.getElementById('uploadResults');
+    const uploadError = document.getElementById('uploadError');
+    
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload(files[0]);
+        }
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+    
+    // Click to upload - alleen als er geen file is geselecteerd
+    uploadArea.addEventListener('click', function(e) {
+        // Voorkom dubbele clicks
+        if (e.target.tagName !== 'BUTTON') {
+            fileInput.click();
+        }
+    });
+});
+
+function handleFileUpload(file) {
+    // Validate file type
+    const allowedTypes = ['.csv', '.slk'];
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    
+    if (!allowedTypes.includes(fileExtension)) {
+        showError('Alleen CSV en SLK bestanden zijn toegestaan.');
+        return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showError('Bestand is te groot. Maximum grootte is 10MB.');
+        return;
+    }
+    
+    // Show progress
+    showProgress();
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Upload file
+    fetch('{% url "api_wizard_upload" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showResults(data.data);
+        } else {
+            showError(data.error || 'Onbekende fout opgetreden');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showError('Upload fout: ' + error.message);
+    });
+}
+
+function showProgress() {
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadResults').style.display = 'none';
+    document.getElementById('uploadError').style.display = 'none';
+    
+    // Simulate progress
+    let progress = 0;
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    const interval = setInterval(() => {
+        progress += 10;
+        progressFill.style.width = progress + '%';
+        
+        if (progress <= 30) {
+            progressText.textContent = 'Bestand uploaden...';
+        } else if (progress <= 60) {
+            progressText.textContent = 'Formaat detecteren...';
+        } else if (progress <= 90) {
+            progressText.textContent = 'Data valideren...';
+        } else {
+            progressText.textContent = 'Voltooid!';
+            clearInterval(interval);
+        }
+    }, 200);
+}
+
+function showResults(data) {
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadResults').style.display = 'block';
+    
+    const resultDetails = document.getElementById('resultDetails');
+    resultDetails.innerHTML = `
+        <div class="detail-item">
+            <strong>Bestand:</strong> ${data.filename}
+        </div>
+        <div class="detail-item">
+            <strong>Patiënten:</strong> ${data.patient_count}
+        </div>
+        <div class="detail-item">
+            <strong>Formaat:</strong> ${data.detection_result.detected_format}
+        </div>
+        <div class="detail-item">
+            <strong>Confidence:</strong> ${data.detection_result.confidence}%
+        </div>
+        <div class="detail-item">
+            <strong>Fouten:</strong> ${data.validation_result.errors.length}
+        </div>
+        <div class="detail-item">
+            <strong>Waarschuwingen:</strong> ${data.validation_result.warnings.length}
+        </div>
+    `;
+}
+
+function showError(message) {
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadError').style.display = 'block';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('errorMessage').textContent = message;
+    
+    // Auto-hide error after 5 seconds
+    setTimeout(() => {
+        document.getElementById('uploadError').style.display = 'none';
+    }, 5000);
+}
+
+function retryUpload() {
+    document.getElementById('uploadError').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('fileInput').value = '';
+}
+
+function showPreview() {
+    // Redirect to preview page
+    window.location.href = '{% url "planning_wizard_preview" %}';
+}
+
+function continueToNextStep() {
+    // Disable button to prevent double clicks
+    const nextBtn = document.querySelector('.btn-primary[onclick="continueToNextStep()"]');
+    nextBtn.disabled = true;
+    nextBtn.innerHTML = '<span class="btn-icon">⏳</span> Laden...';
+    
+    // Save upload data to session and then redirect to preview
+    fetch('{% url "api_wizard_save_upload_data" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            action: 'save_upload_data'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Redirect to preview page
+            window.location.href = '{% url "planning_wizard_preview" %}';
+        } else {
+            // Re-enable button on error
+            nextBtn.disabled = false;
+            nextBtn.innerHTML = '<span class="btn-icon">➡️</span> Volgende Stap';
+            showError('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
+        }
+    })
+    .catch(error => {
+        console.error('Error saving upload data:', error);
+        // Re-enable button on error
+        nextBtn.disabled = false;
+        nextBtn.innerHTML = '<span class="btn-icon">➡️</span> Volgende Stap';
+        showError('Fout bij opslaan: ' + error.message);
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.wizard-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.progress-step.active {
+    opacity: 1;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #6c757d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-step.active .step-number {
+    background: #F8CD46;
+}
+
+.step-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.progress-line {
+    width: 100px;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 1rem;
+}
+
+.upload-section {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.upload-section h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.section-description {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+.upload-area {
+    border: 3px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 3rem;
+    margin-bottom: 2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.upload-area:hover,
+.upload-area.drag-over {
+    border-color: #F8CD46;
+    background: #fffbf0;
+}
+
+.upload-content {
+    text-align: center;
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.upload-content h3 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.upload-content p {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.file-types {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+.upload-progress {
+    margin-bottom: 2rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #F8CD46, #f39c12);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.progress-text {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.upload-results {
+    margin-bottom: 2rem;
+}
+
+.result-card {
+    display: flex;
+    align-items: center;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.result-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.result-content h3 {
+    margin-bottom: 0.5rem;
+    color: #155724;
+}
+
+.detail-item {
+    margin-bottom: 0.25rem;
+    color: #155724;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.upload-error {
+    margin-bottom: 2rem;
+}
+
+.error-card {
+    display: flex;
+    align-items: center;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.error-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.error-content h3 {
+    margin-bottom: 0.5rem;
+    color: #721c24;
+}
+
+.error-content p {
+    color: #721c24;
+}
+
+.help-section {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 12px;
+}
+
+.help-section h3 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #2c3e50;
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.tip-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tip-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.tip-card h4 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.tip-card p {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #F8CD46, #f39c12);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(248, 205, 70, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-icon {
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .wizard-container {
+        padding: 1rem;
+    }
+    
+    .upload-section h1 {
+        font-size: 2rem;
+    }
+    
+    .upload-area {
+        padding: 2rem 1rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

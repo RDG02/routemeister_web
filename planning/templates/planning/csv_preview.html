@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Preview - Routemeister</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #20c997;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .csv-preview {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .csv-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .csv-table th, .csv-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        .csv-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .row-header {
+            background: #e3f2fd;
+            font-weight: bold;
+        }
+        .row-error {
+            background: #ffebee;
+        }
+        .row-ok {
+            background: #e8f5e8;
+        }
+        .error-list {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .error-item {
+            color: #856404;
+            margin: 5px 0;
+        }
+        .column-labels {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .column-label {
+            display: inline-block;
+            margin: 5px 10px 5px 0;
+            padding: 5px 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 CSV Preview</h1>
+            <p>Controleer de CSV data voordat deze wordt verwerkt</p>
+        </div>
+
+        <!-- 🤖 Auto-Detectie Resultaten -->
+        {% if detection_result %}
+        <div style="margin-bottom: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+            <h3>🤖 Auto-Detectie Resultaten</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <strong>📁 Bestand:</strong><br>
+                    {{ csv_file_name }}
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <strong>🎯 Gedetecteerd Formaat:</strong><br>
+                    <span style="color: #007bff; font-weight: bold;">{{ detection_result.detected_format|title }}</span>
+                    {% if detection_result.config_id %}
+                    <br><small style="color: #6c757d;">Config ID: {{ detection_result.config_id }}</small>
+                    {% endif %}
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <strong>📊 Betrouwbaarheid:</strong><br>
+                    <span style="color: {% if detection_result.confidence >= 0.8 %}#28a745{% elif detection_result.confidence >= 0.6 %}#ffc107{% else %}#dc3545{% endif %}; font-weight: bold;">
+                        {{ detection_result.confidence|floatformat:1 }}%
+                    </span>
+                </div>
+            </div>
+            
+            {% if detection_result.warnings %}
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Waarschuwingen:</h4>
+                {% for warning in detection_result.warnings %}
+                <div style="color: #856404; margin: 5px 0;">• {{ warning }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if detection_result.suggestions %}
+            <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                <h4 style="color: #0c5460; margin: 0 0 10px 0;">💡 Suggesties:</h4>
+                {% for suggestion in detection_result.suggestions %}
+                <div style="color: #0c5460; margin: 5px 0;">• {{ suggestion }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div style="margin-bottom: 30px;">
+            <h3>📊 CSV Bestand: {{ csv_file_name }}</h3>
+            <p><strong>Gedetecteerd formaat:</strong> {{ csv_format|title }}</p>
+        </div>
+        {% endif %}
+            
+            <!-- Kolom Labels -->
+            <div class="column-labels">
+                <h4>📋 Gedetecteerde Kolom Mapping:</h4>
+                {% if detection_result %}
+                    {% for field, column_index in detection_result.mappings.items %}
+                    <div class="column-label" style="background: {% if detection_result.confidence >= 0.8 %}#d4edda{% elif detection_result.confidence >= 0.6 %}#fff3cd{% else %}#f8d7da{% endif %};">
+                        {{ column_index }}: {{ field|title }}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    {% if csv_format == 'fahrdlist' %}
+                        <div class="column-label">0: Kunde ID</div>
+                        <div class="column-label">1: Achternaam</div>
+                        <div class="column-label">2: Voornaam</div>
+                        <div class="column-label">3: Adres</div>
+                        <div class="column-label">4: Plaats</div>
+                        <div class="column-label">5: Postcode</div>
+                        <div class="column-label">6: Telefoon</div>
+                        <div class="column-label">7: Mobiel</div>
+                        <div class="column-label">8: Termin Datum</div>
+                        <div class="column-label">9: Start Zeit</div>
+                        <div class="column-label">10: Ende Zeit</div>
+                    {% else %}
+                        <div class="column-label">1: Patient ID</div>
+                        <div class="column-label">2: Achternaam</div>
+                        <div class="column-label">3: Voornaam</div>
+                        <div class="column-label">6: Adres</div>
+                        <div class="column-label">8: Plaats</div>
+                        <div class="column-label">9: Postcode</div>
+                        <div class="column-label">10: Telefoon 1</div>
+                        <div class="column-label">11: Telefoon 2</div>
+                        <div class="column-label">15: Afspraak Datum</div>
+                        <div class="column-label">17: Eerste Behandeling</div>
+                        <div class="column-label">18: Laatste Behandeling</div>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- Error Overzicht -->
+            {% if csv_errors %}
+            <div class="error-list">
+                <h4>⚠️ Gevonden Problemen:</h4>
+                {% for error in csv_errors %}
+                <div class="error-item">
+                    <strong>Rij {{ error.row }}:</strong>
+                    {% for error_msg in error.errors %}
+                        {{ error_msg }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- CSV Preview Tabel -->
+            <div class="csv-preview">
+                <table class="csv-table">
+                    <thead>
+                        <tr>
+                            <th>Rij</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Patient ID</th>
+                            <th>Naam</th>
+                            <th>Adres</th>
+                            <th>Plaats</th>
+                            <th>Telefoon</th>
+                            <th>Datum</th>
+                            <th>Tijden</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in csv_preview %}
+                        <tr class="{% if row.type == 'header' %}row-header{% elif row.status == 'error' %}row-error{% else %}row-ok{% endif %}">
+                            <td>{{ row.row_number }}</td>
+                            <td>{{ row.type|title }}</td>
+                            <td>
+                                {% if row.status == 'ok' %}
+                                    ✅ OK
+                                {% elif row.status == 'error' %}
+                                    ❌ Error
+                                {% else %}
+                                    ℹ️ Info
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if detection_result %}
+                                    {{ row.data|get_item:detection_result.mappings.patient_id|default:"-" }}
+                                {% elif csv_format == 'fahrdlist' %}
+                                    {{ row.data.0|default:"-" }}
+                                {% else %}
+                                    {{ row.data.1|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.type == 'data' %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.2|default:"" }} {{ row.data.1|default:"" }}
+                                    {% else %}
+                                        {{ row.data.3|default:"" }} {{ row.data.2|default:"" }}
+                                    {% endif %}
+                                {% else %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.0|default:"-" }}
+                                    {% else %}
+                                        {{ row.data.1|default:"-" }}
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if csv_format == 'fahrdlist' %}
+                                    {{ row.data.3|default:"-" }}
+                                {% else %}
+                                    {{ row.data.6|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if csv_format == 'fahrdlist' %}
+                                    {{ row.data.4|default:"-" }}
+                                {% else %}
+                                    {{ row.data.8|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.type == 'data' %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.6|default:"" }} / {{ row.data.7|default:"" }}
+                                    {% else %}
+                                        {{ row.data.10|default:"" }} / {{ row.data.11|default:"" }}
+                                    {% endif %}
+                                {% else %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.6|default:"-" }}
+                                    {% else %}
+                                        {{ row.data.10|default:"-" }}
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if csv_format == 'fahrdlist' %}
+                                    {{ row.data.8|default:"-" }}
+                                {% else %}
+                                    {{ row.data.15|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.type == 'data' %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.9|default:"" }} - {{ row.data.10|default:"" }}
+                                    {% else %}
+                                        {{ row.data.17|default:"" }} - {{ row.data.18|default:"" }}
+                                    {% endif %}
+                                {% else %}
+                                    {% if csv_format == 'fahrdlist' %}
+                                        {{ row.data.9|default:"-" }}
+                                    {% else %}
+                                        {{ row.data.17|default:"-" }}
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if row.status == 'error' and row.errors %}
+                        <tr class="row-error">
+                            <td colspan="10">
+                                <strong>Fouten:</strong>
+                                {% for error in row.errors %}
+                                    {{ error }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Geselecteerde Voertuigen en Tijdblokken -->
+        <div style="margin-bottom: 30px;">
+            <h3>🚐 Geselecteerde Voertuigen ({{ selected_vehicles|length }})</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                {% for vehicle_id in selected_vehicles %}
+                    {% for vehicle in available_vehicles %}
+                        {% if vehicle.id|stringformat:"s" == vehicle_id %}
+                        <div style="padding: 8px 12px; background: #e3f2fd; border-radius: 4px; border: 1px solid #bbdefb;">
+                            {{ vehicle.referentie }} - {{ vehicle.kenteken }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <h3>⏰ Geselecteerde Tijdblokken ({{ selected_timeslots|length }})</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                {% for timeslot_id in selected_timeslots %}
+                    {% for timeslot in active_timeslots %}
+                        {% if timeslot.id|stringformat:"s" == timeslot_id %}
+                        <div style="padding: 8px 12px; background: #e8f5e8; border-radius: 4px; border: 1px solid #c3e6cb;">
+                            {{ timeslot.naam }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'new_planning' %}">
+            {% csrf_token %}
+            <!-- Verborgen velden om de selecties te behouden -->
+            {% for vehicle_id in selected_vehicles %}
+            <input type="hidden" name="vehicles" value="{{ vehicle_id }}">
+            {% endfor %}
+            {% for timeslot_id in selected_timeslots %}
+            <input type="hidden" name="timeslots" value="{{ timeslot_id }}">
+            {% endfor %}
+            
+            <div class="actions">
+                <button type="submit" name="action" value="terug" class="btn btn-danger">
+                    🔄 Terug naar Upload
+                </button>
+                {% if not csv_errors %}
+                <button type="submit" name="action" value="continue" class="btn">
+                    ✅ Doorgaan met Verwerking
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</body>
+</html>
