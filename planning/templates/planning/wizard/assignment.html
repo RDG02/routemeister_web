@@ -232,6 +232,12 @@ function showAssignmentResults(result) {
         <div class="detail-item">
             <strong>Tijdblokken Gebruikt:</strong> ${stats.timeslots_used || 0}
         </div>
+        <div class="detail-item">
+            <strong>Beschikbare Voertuigen:</strong> ${stats.available_vehicles || 0}
+        </div>
+        <div class="detail-item">
+            <strong>Capaciteit per Tijdblok:</strong> ${stats.vehicle_capacity || 0} patiënten
+        </div>
     `;
     
     // Show timeslot assignments in the manual assignment area
@@ -301,6 +307,9 @@ function showTimeslotAssignments(timeslotAssignments, timeslotNames) {
         html += `
             <div class="${cardClass}">
                 <h4>${typeIcon} ${timeslotInfo.naam} (${timeslotInfo.aankomst_tijd})</h4>
+                <div class="timeslot-info">
+                    <span class="patient-count">${patients.length} patiënten</span>
+                </div>
                 <div class="patient-list">
         `;
         
@@ -720,6 +729,25 @@ function switchView(viewType) {
 .timeslot-card.brengen h4 {
     border-bottom: 2px solid #6c757d;
     color: #495057;
+}
+
+.timeslot-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+
+.patient-count {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+    background: #e9ecef;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
 }
 
 .patient-list {

@@ -4921,7 +4921,7 @@ def perform_auto_assignment(upload_data, constraints):
     Voer tijdblok-toewijzing uit voor patiënten
     """
     from datetime import datetime, time
-    from .models import TimeSlot
+    from .models import TimeSlot, Vehicle
     
     print("🚀 Start tijdblok-toewijzing...")
     
@@ -4940,6 +4940,12 @@ def perform_auto_assignment(upload_data, constraints):
     # Haal beschikbare tijdblokken op
     available_timeslots = TimeSlot.objects.filter(actief=True).order_by('aankomst_tijd')
     print(f"📅 Beschikbare tijdblokken: {available_timeslots.count()}")
+    
+    # Bereken totale capaciteit per tijdblok op basis van beschikbare voertuigen
+    available_vehicles = Vehicle.objects.filter(status='beschikbaar')
+    total_vehicle_capacity = sum(vehicle.aantal_zitplaatsen - 1 for vehicle in available_vehicles)  # -1 voor chauffeur
+    print(f"🚗 Beschikbare voertuigen: {available_vehicles.count()}")
+    print(f"📦 Totale capaciteit: {total_vehicle_capacity} patiënten per tijdblok")
     
     # Converteer CSV data naar patiënten met tijden
     patients_with_times = []
@@ -5049,9 +5055,9 @@ def perform_auto_assignment(upload_data, constraints):
         
         # Wijs toe aan beste tijdblokken
         if best_halen_timeslot:
-            # Check capaciteit voor halen tijdblok
+            # Check capaciteit voor halen tijdblok op basis van voertuigen
             current_count = len(timeslot_assignments.get(best_halen_timeslot.id, []))
-            if current_count < 4:  # Standaard limiet van 4 patiënten per tijdblok
+            if current_count < total_vehicle_capacity:  # Gebruik voertuig capaciteit in plaats van hardcoded 4
                 if best_halen_timeslot.id not in timeslot_assignments:
                     timeslot_assignments[best_halen_timeslot.id] = []
                 
@@ -5060,9 +5066,9 @@ def perform_auto_assignment(upload_data, constraints):
                 print(f"✅ {patient['voornaam']} {patient['achternaam']} → {best_halen_timeslot.naam} (Halen: {best_halen_timeslot.aankomst_tijd})")
         
         if best_brengen_timeslot:
-            # Check capaciteit voor brengen tijdblok
+            # Check capaciteit voor brengen tijdblok op basis van voertuigen
             current_count = len(timeslot_assignments.get(best_brengen_timeslot.id, []))
-            if current_count < 4:  # Standaard limiet van 4 patiënten per tijdblok
+            if current_count < total_vehicle_capacity:  # Gebruik voertuig capaciteit in plaats van hardcoded 4
                 if best_brengen_timeslot.id not in timeslot_assignments:
                     timeslot_assignments[best_brengen_timeslot.id] = []
                 
@@ -5072,7 +5078,7 @@ def perform_auto_assignment(upload_data, constraints):
         
         if not assigned:
             unassigned_patients.append(patient)
-            print(f"❌ {patient['voornaam']} {patient['achternaam']} kon niet toegewezen worden")
+            print(f"❌ {patient['voornaam']} {patient['achternaam']} kon niet toegewezen worden (capaciteit bereikt)")
     
     # Bereken statistieken
     total_assigned = sum(len(patients) for patients in timeslot_assignments.values())
@@ -5084,6 +5090,7 @@ def perform_auto_assignment(upload_data, constraints):
     print(f"   - Toegewezen: {total_assigned}")
     print(f"   - Niet toegewezen: {len(unassigned_patients)}")
     print(f"   - Succes percentage: {assignment_rate:.1f}%")
+    print(f"   - Capaciteit per tijdblok: {total_vehicle_capacity} patiënten")
     
     # Voeg tijdblok namen toe aan de response
     timeslot_names = {}
@@ -5104,7 +5111,9 @@ def perform_auto_assignment(upload_data, constraints):
             'assigned_patients': total_assigned,
             'unassigned_patients': len(unassigned_patients),
             'assignment_rate': assignment_rate,
-            'timeslots_used': len(timeslot_assignments)
+            'timeslots_used': len(timeslot_assignments),
+            'vehicle_capacity': total_vehicle_capacity,
+            'available_vehicles': available_vehicles.count()
         }
     }
 
