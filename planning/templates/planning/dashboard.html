@@ -1,0 +1,937 @@
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Routemeister{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --routemeister-dark: #1F2937;
+        --routemeister-green: #1DAA6E;
+        --routemeister-green-dark: #0F766E;
+        --text-primary: #111827;
+        --text-secondary: #374151;
+        --text-muted: #6B7280;
+        --border-color: #E5E7EB;
+        --bg-white: #FFF;
+        --bg-light: #F9FAFB;
+        --bg-map: #EEF2FF;
+        --vehicle-red: #e74c3c;
+        --vehicle-orange: #f39c12;
+        --vehicle-green: #27ae60;
+        --vehicle-purple: #8e44ad;
+        --vehicle-blue: #2980b9;
+    }
+
+    .dashboard-container {
+        background: #f8fafc;
+        min-height: 100vh;
+        font-family: 'Inter', Arial, sans-serif;
+    }
+
+
+
+    .new-planning-btn {
+        background: var(--routemeister-green);
+        border: 1px solid var(--routemeister-green-dark);
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .new-planning-btn:hover {
+        background: var(--routemeister-green-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 40px;
+        max-width: 1440px;
+        margin: 0 auto;
+    }
+
+    .dashboard-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 20px;
+    }
+
+    /* Vehicle Status Card */
+    .vehicle-status-card {
+        background: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 40px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .vehicle-status-card:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .vehicle-icon {
+        width: 48px;
+        height: 48px;
+        background: #f3f4f6;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .van-icon {
+        position: relative;
+        width: 32px;
+        height: 20px;
+    }
+
+    .van-body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        border: 2px solid #374151;
+        border-radius: 4px;
+        position: relative;
+    }
+
+    .van-windows {
+        position: absolute;
+        top: 2px;
+        left: 4px;
+        width: 8px;
+        height: 6px;
+        background: #87ceeb;
+        border-radius: 1px;
+    }
+
+    .van-windows::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: -6px;
+        width: 6px;
+        height: 6px;
+        background: #87ceeb;
+        border-radius: 1px;
+    }
+
+    .vehicle-info {
+        flex: 1;
+    }
+
+    .vehicle-count {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .vehicle-label {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+
+    .vehicle-action {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Timeline */
+    .timeline-section {
+        margin-bottom: 40px;
+    }
+
+    .timeline-date {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .timeline-track {
+        background: var(--routemeister-dark);
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .timeline-segment {
+        flex: 1;
+        background: #374151;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #E5E7EB;
+        font-size: 14px;
+        font-weight: 600;
+        border-right: 1px solid var(--routemeister-dark);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .timeline-segment:hover {
+        background: var(--routemeister-yellow);
+        color: var(--routemeister-dark);
+        transform: translateY(-2px);
+    }
+    
+    .timeline-segment.active {
+        background: var(--routemeister-yellow);
+        color: var(--routemeister-dark);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .timeline-segment:last-child {
+        border-right: none;
+    }
+
+    .timeline-cursor {
+        position: absolute;
+        top: -6px;
+        left: 16.67%; /* 08:00 position */
+        width: 4px;
+        height: 52px;
+        background: #C9A42B;
+        border-radius: 2px;
+        z-index: 10;
+    }
+    
+    .timeline-controls {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+    }
+    
+    .clear-filter-btn {
+        background: var(--routemeister-green);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .clear-filter-btn:hover {
+        background: var(--routemeister-green-dark);
+        transform: translateY(-1px);
+    }
+
+
+
+
+
+
+
+
+
+    /* No Planning Section */
+    .no-planning-section {
+        margin-top: 40px;
+    }
+
+    .no-planning-card {
+        background: var(--bg-white);
+        border: 2px dashed var(--border-color);
+        border-radius: 16px;
+        padding: 60px 40px;
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .no-planning-icon {
+        font-size: 64px;
+        margin-bottom: 24px;
+        opacity: 0.6;
+    }
+
+    .no-planning-card h3 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+
+    .no-planning-card p {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 32px;
+        line-height: 1.6;
+    }
+
+    .no-planning-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .new-planning-btn-large {
+        background: var(--routemeister-green);
+        color: white;
+        border: none;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(29, 170, 110, 0.3);
+    }
+
+    .new-planning-btn-large:hover {
+        background: var(--routemeister-green-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(29, 170, 110, 0.4);
+    }
+
+    .new-planning-btn-large span {
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .view-planning-btn {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 2px solid var(--border-color);
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .view-planning-btn:hover {
+        background: var(--bg-light);
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+
+    /* Responsive */
+
+
+    @media (max-width: 768px) {
+        .main-content {
+            padding: 20px;
+        }
+        
+        /* Twee-kolommen layout wordt één kolom op mobiel */
+        .dashboard-layout {
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .dashboard-layout > div {
+            max-width: 100% !important;
+        }
+        
+        .vehicle-status-card {
+            flex-direction: column;
+            text-align: center;
+            gap: 12px;
+        }
+        
+        .topbar {
+            padding: 0 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1 class="dashboard-title">Dashboard</h1>
+            <a href="{% url 'planning_wizard_start' %}" class="new-planning-btn">
+                Nieuwe Planning
+            </a>
+        </div>
+
+        <!-- Vehicle Status Card -->
+        <a href="{% url 'vehicles_list' %}" class="vehicle-status-card">
+            <div class="vehicle-icon">
+                <div class="van-icon">
+                    <div class="van-body"></div>
+                    <div class="van-windows"></div>
+                </div>
+            </div>
+            <div class="vehicle-info">
+                <div class="vehicle-count">{{ available_vehicles|default:0 }}/{{ total_vehicles|default:0 }}</div>
+                <div class="vehicle-label">Voertuigen Beschikbaar</div>
+                <div class="vehicle-action">Klik om te beheren</div>
+            </div>
+        </a>
+
+        <!-- Timeline - alle geselecteerde tijdblokken tonen (ook lege) -->
+        {% if has_today_planning %}
+        <div class="timeline-section">
+            <div class="timeline-date">{{ today_date|date:"M d, Y" }}</div>
+            <div class="timeline-track">
+                {% for timeslot in active_timeslots %}
+                <div class="timeline-segment" 
+                     data-time="{{ timeslot.time|time:'H:i' }}" 
+                     data-timeslot-id="{{ timeslot.time|time:'H:i' }}_{{ timeslot.type }}"
+                     data-timeslot-type="{{ timeslot.type }}"
+                     onclick="filterByTimeslot('{{ timeslot.time|time:'H:i' }}', '{{ timeslot.time|time:'H:i' }}_{{ timeslot.type }}', '{{ timeslot.type }}')">
+                    {{ timeslot.time|time:'H:i' }}
+                    <span style="font-size: 10px; display: block;">{{ timeslot.icon }}</span>
+                </div>
+                {% endfor %}
+                <div class="timeline-cursor"></div>
+            </div>
+            <div class="timeline-controls">
+                <button class="clear-filter-btn" onclick="clearTimeFilter()">Toon Alles</button>
+            </div>
+        </div>
+        {% endif %}
+
+                <!-- Map and Sidebar -->
+        {% if has_today_planning %}
+        <!-- Planning van vandaag is actief -->
+
+    <div class="dashboard-layout" style="display: flex; gap: 20px; margin-top: 20px;">
+        
+        <!-- Linker kolom: Patiënten en voertuigen informatie -->
+        <div style="flex: 1; max-width: 40%;">
+            <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0; color: #1F2937; font-size: 18px;">📋 Planning Overzicht</h3>
+                
+                {% if has_today_planning %}
+                    <!-- Voertuigen met patiënten -->
+                             {% for vehicle_data in vehicles_with_patients %}
+                        <div style="margin-bottom: 20px; padding: 15px; border-radius: 6px; border-left: 4px solid {{ vehicle_data.vehicle.kleur|default:'#3B82F6' }}; background: #F8FAFC;">
+                            <div style="font-weight: bold; color: #1F2937; margin-bottom: 10px; font-size: 16px;">
+                                🚐 {{ vehicle_data.vehicle.referentie|default:vehicle_data.vehicle.kenteken }} 
+                                <span style="color: #6B7280; font-size: 14px;">({{ vehicle_data.vehicle.merk_model|default:"Type" }})</span>
+                                     </div>
+                            <div style="font-size: 14px; color: #6B7280; margin-bottom: 8px; background: #E5E7EB; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                                {{ vehicle_data.patients|length }} patiënt{{ vehicle_data.patients|length|pluralize:"en" }}
+                                     </div>
+                            <div style="font-size: 13px;">
+                                {% for patient in vehicle_data.patients %}
+                                    <div style="padding: 6px 0; border-bottom: 1px solid #F3F4F6; display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: #374151; font-weight: 500;">{{ patient.naam }}</span>
+                                        <span style="color: #6B7280; font-size: 12px; background: #F3F4F6; padding: 2px 6px; border-radius: 3px;">
+                                            {{ patient.ophaal_tijd|time:"H:i" }} - {{ patient.eind_behandel_tijd|time:"H:i" }}
+                                        </span>
+                                 </div>
+                                {% endfor %}
+                                             </div>
+                                         </div>
+                                         {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px 20px; color: #6B7280;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
+                        <div style="font-size: 18px; margin-bottom: 8px; color: #374151;">Geen planning actief</div>
+                        <div style="font-size: 14px; margin-bottom: 20px;">Er is geen planning gemaakt voor vandaag</div>
+                        <a href="/wizard/" style="display: inline-block; background: #3B82F6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                            Nieuwe Planning Maken
+                        </a>
+                                     </div>
+                {% endif %}
+                                 </div>
+                         </div>
+                         
+        <!-- Rechter kolom: Google Maps kaart -->
+        <div style="flex: 1; max-width: 60%;">
+            <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0; color: #1F2937; font-size: 18px;">🗺️ Route Kaart</h3>
+                <div id="map" style="width: 100%; height: 800px; border-radius: 8px; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8fafc; color: #6B7280;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🗺️</div>
+                            <div>Google Maps kaart wordt geladen...</div>
+                                 </div>
+                                     </div>
+                                     </div>
+                                 </div>
+                             </div>
+        
+            </div>
+                    
+
+
+
+        </div>
+        {% else %}
+        <!-- Geen planning van vandaag - toon knop voor nieuwe planning -->
+        <div class="no-planning-section">
+            <div class="no-planning-card">
+                <div class="no-planning-icon">📅</div>
+                <h3>Geen planning actief voor vandaag</h3>
+                <p>Er is nog geen planning gemaakt voor {{ today_date|date:"d M Y" }}. Start een nieuwe planning om patiënten toe te wijzen aan voertuigen.</p>
+                <div class="no-planning-actions">
+                    <a href="{% url 'planning_wizard_start' %}" class="new-planning-btn-large">
+                        <span>+</span>
+                        Nieuwe Planning Maken
+                    </a>
+                    <a href="{% url 'planning_overview' %}" class="view-planning-btn">
+                        Bekijk Vorige Planningen
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Update timeline cursor position based on current time
+    function updateTimelineCursor() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        
+        // Find the closest timeline segment to current time
+        const segments = document.querySelectorAll('.timeline-segment');
+        let closestSegment = null;
+        let minTimeDiff = Infinity;
+        
+        segments.forEach((segment, index) => {
+            const segmentTime = segment.getAttribute('data-time');
+            if (segmentTime) {
+                const [hour, minute] = segmentTime.split(':').map(Number);
+                const timeDiff = Math.abs((hour * 60 + minute) - (currentHour * 60 + currentMinute));
+                
+                if (timeDiff < minTimeDiff) {
+                    minTimeDiff = timeDiff;
+                    closestSegment = { element: segment, index: index };
+                }
+            }
+        });
+        
+        // Calculate position based on closest segment
+        if (closestSegment && segments.length > 1) {
+            const percentage = (closestSegment.index / (segments.length - 1)) * 100;
+        const cursor = document.querySelector('.timeline-cursor');
+        if (cursor) {
+            cursor.style.left = percentage + '%';
+            }
+        }
+        
+        // Highlight current time segment (only if no filter is active)
+        if (!currentTimeFilter && closestSegment) {
+            segments.forEach((segment, index) => {
+                if (index === closestSegment.index) {
+                    segment.style.background = '#C9A42B';
+                    segment.style.color = '#1F2937';
+                } else {
+                    segment.style.background = '#374151';
+                    segment.style.color = '#E5E7EB';
+                }
+            });
+        }
+    }
+
+    // Timeline filtering functionality
+    let currentTimeFilter = null;
+    
+    function filterByTimeslot(time, timeslotId, timeslotType) {
+        // Remove active class and reset styling from all segments
+        document.querySelectorAll('.timeline-segment').forEach(segment => {
+            segment.classList.remove('active');
+            segment.style.background = '#374151';
+            segment.style.color = '#E5E7EB';
+        });
+        
+        // Add active class and apply yellow styling to clicked segment
+        const clickedSegment = document.querySelector(`[data-timeslot-id="${timeslotId}"]`);
+        if (clickedSegment) {
+            clickedSegment.classList.add('active');
+            clickedSegment.style.background = 'var(--routemeister-yellow)';
+            clickedSegment.style.color = 'var(--routemeister-dark)';
+        }
+        
+        // Store current filter
+        currentTimeFilter = { time: time, timeslotId: timeslotId, timeslotType: timeslotType };
+        
+        // Filter dashboard content based on timeslot
+        filterDashboardContent(time, timeslotId, timeslotType);
+        
+        console.log(`Filtering dashboard by timeslot: ${time} (${timeslotId}) - ${timeslotType}`);
+    }
+    
+    function filterDashboardContent(time, timeslotId, timeslotType) {
+        // Filter based on timeslot data attributes
+        const allPatients = document.querySelectorAll('.patient-in-vehicle[data-timeslot-key]');
+        let visibleCount = 0;
+        let totalCount = allPatients.length;
+        
+        // Create timeslot key to match against patient data
+        const selectedTimeslotKey = `${time} - ${timeslotType}`;
+        
+        allPatients.forEach(patient => {
+            const timeslotKey = patient.getAttribute('data-timeslot-key');
+            
+            if (timeslotKey === selectedTimeslotKey) {
+                patient.style.display = 'block';
+                patient.style.opacity = '1';
+                visibleCount++;
+            } else {
+                patient.style.display = 'none';
+                patient.style.opacity = '0.3';
+            }
+        });
+        
+        // Show/hide vehicle route cards based on whether they have visible patients
+        const vehicleCards = document.querySelectorAll('.vehicle-route-card');
+        vehicleCards.forEach(card => {
+            const visiblePatients = card.querySelectorAll('.patient-in-vehicle[style*="display: block"]');
+            if (visiblePatients.length > 0) {
+                card.style.display = 'block';
+                card.style.opacity = '1';
+            } else {
+                card.style.display = 'none';
+                card.style.opacity = '0.3';
+            }
+        });
+        
+        // Update map content based on timeslot
+        updateMapContent(time, timeslotId, timeslotType);
+        
+        // Update statistics based on timeslot with real counts
+        updateTimeBasedStats(time, timeslotId, timeslotType, visibleCount, totalCount);
+        
+        // Show filtering feedback
+        showFilteringFeedback(time, visibleCount, totalCount);
+    }
+    
+    function showFilteringFeedback(time, visibleCount, totalCount) {
+        // Update map title to show filtered count
+        const mapTitle = document.querySelector('.map-title');
+        if (mapTitle) {
+            if (visibleCount === 0) {
+                mapTitle.textContent = `Planning van vandaag - Geen patiënten in tijdsblok ${time}`;
+            } else if (visibleCount === totalCount) {
+                mapTitle.textContent = `Planning van vandaag - Alle ${totalCount} patiënten`;
+            } else {
+                mapTitle.textContent = `Planning van vandaag - ${visibleCount} van ${totalCount} patiënten in tijdsblok ${time}`;
+            }
+        }
+        
+        // Add visual feedback to timeline segment
+        const activeSegment = document.querySelector('.timeline-segment.active');
+        if (activeSegment) {
+            // Add patient count badge
+            let badge = activeSegment.querySelector('.patient-count-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'patient-count-badge';
+                badge.style.cssText = `
+                    position: absolute;
+                    top: -8px;
+                    right: -8px;
+                    background: var(--routemeister-green);
+                    color: white;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    font-weight: 700;
+                    z-index: 15;
+                `;
+                activeSegment.appendChild(badge);
+            }
+            badge.textContent = visibleCount;
+            
+            // Hide badge if no patients
+            if (visibleCount === 0) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = 'flex';
+            }
+        }
+    }
+    
+    function updateMapContent(time, timeslotId, timeslotType) {
+        const mapContent = document.querySelector('.map-content');
+        if (mapContent) {
+                    // Update map title to show filtered time
+        const mapTitle = document.querySelector('.map-title');
+        if (mapTitle) {
+            mapTitle.textContent = `Planning van vandaag - Tijdblok ${time} ({{ total_today_patients }} patiënten, {{ total_today_routes }} routes)`;
+        }
+            
+            // Add time-specific content to map
+            const timeContent = document.createElement('div');
+            timeContent.className = 'time-filter-info';
+            timeContent.style.cssText = `
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: rgba(29, 170, 110, 0.9);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                z-index: 20;
+            `;
+            timeContent.textContent = `Tijdblok: ${time}`;
+            
+            // Remove existing time filter info
+            const existingInfo = mapContent.querySelector('.time-filter-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+            
+            mapContent.appendChild(timeContent);
+        }
+    }
+    
+    function updateTimeBasedStats(time, timeslotId, timeslotType, visibleCount, totalCount) {
+        // Update vehicle count based on time with real data
+        const vehicleCount = document.querySelector('.vehicle-count');
+        if (vehicleCount) {
+            // Show filtered count vs total
+            vehicleCount.textContent = `${visibleCount}/${totalCount}`;
+        }
+        
+        // Update patient count based on time with real data
+        const patientCount = document.querySelector('.patient-count');
+        if (patientCount) {
+            patientCount.textContent = `${visibleCount}`;
+        }
+    }
+    
+    function clearTimeFilter() {
+        // Remove active class and reset styling from all segments
+        document.querySelectorAll('.timeline-segment').forEach(segment => {
+            segment.classList.remove('active');
+            segment.style.background = '#374151';
+            segment.style.color = '#E5E7EB';
+        });
+        
+        // Clear current filter
+        currentTimeFilter = null;
+        
+        // Show all content
+        document.querySelectorAll('.vehicle-route-card').forEach(card => {
+            card.style.display = 'block';
+            card.style.opacity = '1';
+        });
+        
+        document.querySelectorAll('.patient-in-vehicle').forEach(patient => {
+            patient.style.display = 'block';
+            patient.style.opacity = '1';
+        });
+        
+        // Show all timeslot groups
+        document.querySelectorAll('.timeslot-group').forEach(group => {
+            group.style.display = 'block';
+            group.style.opacity = '1';
+        });
+        
+        // Reset map content
+        const mapTitle = document.querySelector('.map-title');
+        if (mapTitle) {
+            mapTitle.textContent = 'Planning van vandaag - {{ total_today_patients }} patiënten, {{ total_today_routes }} routes';
+        }
+        
+        // Remove time filter info
+        const timeFilterInfo = document.querySelector('.time-filter-info');
+        if (timeFilterInfo) {
+            timeFilterInfo.remove();
+        }
+        
+        // Remove patient count badges
+        document.querySelectorAll('.patient-count-badge').forEach(badge => {
+            badge.remove();
+        });
+        
+        // Restore normal timeline styling
+        updateTimelineCursor();
+        
+        console.log('Time filter cleared');
+    }
+    
+    // Google Maps functionaliteit
+    function initGoogleMaps() {
+        // Check if Google Maps is loaded
+        if (typeof google === 'undefined' || !google.maps) {
+            console.log('Google Maps not loaded yet');
+            return;
+        }
+        
+        const mapElement = document.getElementById('map');
+        if (!mapElement) return;
+        
+        // Create map centered on home location (Bonn area)
+        const map = new google.maps.Map(mapElement, {
+            center: { lat: 50.7414, lng: 7.1532 }, // Bonn, Germany (home location)
+            zoom: 8,
+            styles: [
+                {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                }
+            ]
+        });
+        
+        // Add home marker (Routemeister depot)
+        {% if home_location %}
+        const homeMarker = new google.maps.Marker({
+            position: { lat: {{ home_location.latitude|floatformat:6 }}, lng: {{ home_location.longitude|floatformat:6 }} },
+            map: map,
+            title: '{{ home_location.name }} - Home',
+            icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 9v13h20V9l-10-7z" fill="#FFD235" stroke="#1F2937" stroke-width="2"/>
+                        <path d="M9 22V12h6v10" fill="#1F2937"/>
+                        <circle cx="12" cy="8" r="2" fill="#1F2937"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(32, 32)
+            }
+        });
+        
+        // Add info window for home marker
+        const homeInfoWindow = new google.maps.InfoWindow({
+            content: `
+                <div style="padding: 8px; text-align: center;">
+                    <div style="font-weight: bold; color: #1F2937; margin-bottom: 4px;">🏠 {{ home_location.name }}</div>
+                    <div style="font-size: 12px; color: #6B7280;">{{ home_location.address|default:"Start- en eindpunt voor alle routes" }}</div>
+                </div>
+            `
+        });
+        
+        homeMarker.addListener('click', () => {
+            homeInfoWindow.open(map, homeMarker);
+        });
+        
+        // Center map on home location if available
+        map.setCenter({ lat: {{ home_location.latitude|floatformat:6 }}, lng: {{ home_location.longitude|floatformat:6 }} });
+        map.setZoom(8);
+        {% else %}
+        // Fallback home marker (Bonn, Duitsland)
+        const homeMarker = new google.maps.Marker({
+            position: { lat: 50.7414, lng: 7.1532 },
+            map: map,
+            title: 'Routemeister Depot - Home (Fallback)',
+            icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 9v13h20V9l-10-7z" fill="#FFD235" stroke="#1F2937" stroke-width="2"/>
+                        <path d="M9 22V12h6v10" fill="#1F2937"/>
+                        <circle cx="12" cy="8" r="2" fill="#1F2937"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(32, 32)
+            }
+        });
+        
+        // Add info window for fallback home marker
+        const homeInfoWindow = new google.maps.InfoWindow({
+            content: `
+                <div style="padding: 8px; text-align: center;">
+                    <div style="font-weight: bold; color: #1F2937; margin-bottom: 4px;">🏠 Routemeister Depot (Fallback)</div>
+                    <div style="font-size: 12px; color: #6B7280;">Bonn, Duitsland - Stel home locatie in via Django Admin</div>
+                </div>
+            `
+        });
+        
+        homeMarker.addListener('click', () => {
+            homeInfoWindow.open(map, homeMarker);
+        });
+        {% endif %}
+        
+        // Add markers for patients if coordinates exist
+        {% if has_today_planning %}
+        {% for vehicle_data in vehicles_with_patients %}
+            {% for patient in vehicle_data.patients %}
+                {% if patient.latitude and patient.longitude %}
+                new google.maps.Marker({
+                    position: { lat: {{ patient.latitude }}, lng: {{ patient.longitude }} },
+                    map: map,
+                    title: '{{ patient.naam }}',
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="8" fill="#3498db" stroke="white" stroke-width="2"/>
+                                <text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="bold">P</text>
+                            </svg>
+                        `),
+                        scaledSize: new google.maps.Size(24, 24)
+                    }
+                });
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        {% endif %}
+        
+        console.log('Google Maps initialized');
+    }
+    
+    // Update stats with real data
+    function updateStats() {
+        // This would be populated with real data from your backend
+        console.log('Updating dashboard stats...');
+    }
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only initialize timeline functionality if there's planning for today
+        {% if has_today_planning %}
+        updateTimelineCursor();
+        updateStats();
+        
+        // Initialize Google Maps
+        initGoogleMaps();
+        
+        // Update every minute
+        setInterval(updateTimelineCursor, 60000);
+        setInterval(updateStats, 300000); // Every 5 minutes
+        {% else %}
+        console.log('No planning for today - timeline functionality disabled');
+        {% endif %}
+    });
+</script>
+
+<!-- Google Maps API -->
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|default:'' }}&callback=initGoogleMaps">
+</script>
+{% endblock %}

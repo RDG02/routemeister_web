@@ -14,6 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylinedecorator.css" />
@@ -318,8 +321,9 @@
                     <img src="{% static 'Routemeister_Logo_White_BG_Larger.png' %}" alt="Routemeister" class="navbar-logo">
                 </a>
                 <ul class="nav-links">
-                    <li><a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Dashboard</a></li>
-                    <li><a href="{% url 'planning_overview' %}" {% if request.resolver_match.url_name == 'planning_overview' %}class="active"{% endif %}>Planning</a></li>
+    
+                    <li><a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+                                    <li><a href="{% url 'planning_new' %}" {% if request.resolver_match.url_name == 'planning_new' %}class="active"{% endif %}>Planning</a></li>
                     <li><a href="{% url 'statistics' %}" {% if request.resolver_match.url_name == 'statistics' %}class="active"{% endif %}>Statistieken</a></li>
                     <li><a href="{% url 'vehicles_list' %}" {% if request.resolver_match.url_name == 'vehicles_list' %}class="active"{% endif %}>Voertuigen</a></li>
                     <li><a href="{% url 'users_list' %}" {% if request.resolver_match.url_name == 'users_list' %}class="active"{% endif %}>Gebruikers</a></li>

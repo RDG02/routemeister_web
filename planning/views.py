@@ -3,7 +3,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
-from .models import Patient, Vehicle, TimeSlot, Location
+from django.utils import timezone
+from .models import Patient, Vehicle, TimeSlot, Location, GoogleMapsConfig, GoogleMapsAPILog
 from django.db import models
 from .services.optaplanner import optaplanner_service
 from .services.simple_router import simple_route_service
@@ -26,56 +27,162 @@ logger = logging.getLogger(__name__)
 
 def home(request):
     """
-    Dashboard homepage - Verbeterde versie
+    Redirect directly to dashboard - no more home page
     """
-    from datetime import date, timedelta
-    from .models_extended import PlanningSession
+    from django.http import HttpResponseRedirect
+    from django.urls import reverse
     
-    # Get today's date
+    return HttpResponseRedirect(reverse('dashboard'))
+
+
+def dashboard(request):
+    """
+    Nieuwe dashboard met moderne UI/UX gebaseerd op SVG design
+    Toont planning van vandaag (2 september 2025) of knop voor nieuwe planning
+    """
+    from datetime import date, timedelta, datetime, timezone
+    
+    # Get today's date (2 september 2025)
     today = date.today()
+    now = datetime.now(timezone.utc)
     
     # Get available vehicles count
     available_vehicles = Vehicle.objects.filter(status='beschikbaar').count()
+    
+    # Get total vehicles count
     total_vehicles = Vehicle.objects.count()
     
-    # Get today's patients count
-    today_patients = Patient.objects.filter(ophaal_tijd__date=today).count()
+    # Get today's patients with assigned vehicles (planning van vandaag)
+    today_patients = Patient.objects.filter(
+        ophaal_tijd__date=today,
+        toegewezen_voertuig__isnull=False,
+        status__in=['gepland', 'onderweg']
+    ).order_by('ophaal_tijd')
     
-    # Get today's planning routes
-    today_routes = get_today_planning_routes()
+    # Get upcoming stops for sidebar (only today's patients)
+    upcoming_stops = today_patients[:8]
     
-    # Get statistics
-    stats = get_dashboard_statistics()
+    # Check if there's any planning for today
+    has_today_planning = today_patients.exists()
     
-    # Get recent planning sessions (last 7 days)
-    week_ago = today - timedelta(days=7)
-    recent_sessions = PlanningSession.objects.filter(
-        created_by=request.user,
-        created_at__date__gte=week_ago
-    ).order_by('-created_at')[:5]
+    # Get actual patient times from CSV data (not hardcoded timeslots)
+    patient_times = []
     
-    # Check if there's an active planning session
-    active_session = PlanningSession.objects.filter(
-        created_by=request.user,
-        status__in=['concept', 'processing']
-    ).first()
+    for patient in today_patients:
+        if patient.ophaal_tijd:
+            # Add pickup time
+            patient_times.append({
+                'time': patient.ophaal_tijd,
+                'type': 'halen',
+                'patient_name': patient.naam,
+                'icon': '🚐'
+            })
+        if patient.eind_behandel_tijd:
+            # Add end time
+            patient_times.append({
+                'time': patient.eind_behandel_tijd,
+                'type': 'brengen',
+                'patient_name': patient.naam,
+                'icon': '🏠'
+            })
     
-    # Get active timeslots for quick overview
-    active_timeslots = TimeSlot.objects.filter(actief=True).order_by('aankomst_tijd')
+    # Sort by time and remove duplicates (same time, same type)
+    unique_times = {}
+    for pt in patient_times:
+        time_key = f"{pt['time'].strftime('%H:%M')}_{pt['type']}"
+        if time_key not in unique_times:
+            unique_times[time_key] = pt
+    
+    # Convert to sorted list
+    active_timeslots = sorted(unique_times.values(), key=lambda x: x['time'])
+    
+    # Print patient times for debugging
+    timeline_info = []
+    for pt in active_timeslots:
+        timeline_info.append(f"{pt['time'].strftime('%H:%M')} {pt['type']}")
+    print(f"Patient times for timeline: {timeline_info}")
+    
+    # Get vehicle data for map visualization (only for today)
+    vehicles_with_patients = []
+    if has_today_planning:
+        for vehicle in Vehicle.objects.filter(status='beschikbaar'):
+            patients = Patient.objects.filter(
+                toegewezen_voertuig=vehicle,
+                ophaal_tijd__date=today,
+                status__in=['gepland', 'onderweg']
+            )
+            if patients.exists():
+                # Group patients by actual patient times from CSV
+                patients_by_timeslot = {}
+                for patient in patients:
+                    # Create timeslot keys based on actual patient times
+                    if patient.ophaal_tijd:
+                        pickup_key = f"{patient.ophaal_tijd.strftime('%H:%M')} - halen"
+                        if pickup_key not in patients_by_timeslot:
+                            patients_by_timeslot[pickup_key] = []
+                        patients_by_timeslot[pickup_key].append(patient)
+                    
+                    if patient.eind_behandel_tijd:
+                        end_key = f"{patient.eind_behandel_tijd.strftime('%H:%M')} - brengen"
+                        if end_key not in patients_by_timeslot:
+                            patients_by_timeslot[end_key] = []
+                        patients_by_timeslot[end_key].append(patient)
+                
+                vehicles_with_patients.append({
+                    'vehicle': vehicle,
+                    'patients': patients,
+                    'patient_count': patients.count(),
+                    'patients_by_timeslot': patients_by_timeslot
+                })
+    
+    # Get routes from the planning wizard session (Google Maps API results)
+    routes_data = {}
+    try:
+        # Check if there are routes in the current planning session
+        planning_session = request.session.get('planning_session', {})
+        if planning_session:
+            routes_data = planning_session.get('routes', {})
+            logger.info(f"Routes found in session: {len(routes_data)} timeslots")
+        else:
+            logger.info("No planning session found, routes will be empty")
+    except Exception as e:
+        logger.warning(f"Could not retrieve routes: {e}")
+        routes_data = {}
+    
+    # Get today's statistics
+    total_today_patients = today_patients.count()
+    total_today_routes = len(vehicles_with_patients)
+    
+    # Get Google Maps API key from configuration
+    try:
+        google_maps_config = GoogleMapsConfig.get_active_config()
+        google_maps_api_key = google_maps_config.api_key if google_maps_config.enabled else ''
+    except:
+        google_maps_api_key = ''
+    
+    # Get home location for map
+    try:
+        from .models import Location
+        home_location = Location.get_home_location()
+    except:
+        home_location = None
     
     context = {
-        'today_routes': today_routes,
-        'stats': stats,
-        'recent_sessions': recent_sessions,
+        'today_date': today,
         'available_vehicles': available_vehicles,
         'total_vehicles': total_vehicles,
-        'today_patients': today_patients,
-        'active_session': active_session,
-        'active_timeslots': active_timeslots,
-        'page_title': 'Dashboard'
+        'upcoming_stops': upcoming_stops,
+        'vehicles_with_patients': vehicles_with_patients,
+        'has_today_planning': has_today_planning,
+        'total_today_patients': total_today_patients,
+        'total_today_routes': total_today_routes,
+        'active_timeslots': active_timeslots,  # Only timeslots with assigned patients
+        'routes_data': routes_data,  # Google Maps API routes
+        'google_maps_api_key': google_maps_api_key,  # Google Maps API key
+        'home_location': home_location,  # Home location for map
     }
     
-    return render(request, 'planning/home.html', context)
+    return render(request, 'planning/dashboard.html', context)
 
 
 def upload_csv(request):
@@ -102,9 +209,10 @@ def upload_csv(request):
         csv_file.seek(0)  # Reset file pointer again
         
         # Maak CSV log entry
+        imported_by = request.user if request.user.is_authenticated else None
         csv_log = CSVImportLog.objects.create(
             filename=csv_file.name,
-            imported_by=request.user,
+            imported_by=imported_by,
             status='failed',  # Start with failed, update to success later
             total_patients=0,
             imported_patients=0,
@@ -134,111 +242,43 @@ def upload_csv(request):
             
             csv_reader = csv.reader(io.StringIO(file_data), delimiter=';')
             
+            # Verwijder alle bestaande patiënten voor vandaag voordat nieuwe worden aangemaakt
+            today = date.today()
+            existing_patients = Patient.objects.filter(ophaal_tijd__date=today)
+            if existing_patients.exists():
+                deleted_count = existing_patients.count()
+                existing_patients.delete()
+                print(f"🗑️ Verwijderd {deleted_count} bestaande patiënten voor {today}")
+                messages.info(request, f'{deleted_count} bestaande patiënten voor {today} zijn verwijderd om plaats te maken voor de nieuwe planning.')
+            
             patients_created = 0
             patients_updated = 0
             total_rows = 0
             error_rows = []
             
+            # Gebruik cache manager voor slimme patiënten verwerking
+            from .cache_manager import PatientCacheManager
+            
+            print("🚀 Start slimme CSV verwerking met caching...")
+            
+            # Converteer CSV reader naar lijst voor cache manager
+            csv_rows = []
             for row_index, row in enumerate(csv_reader):
                 total_rows += 1
-                if len(row) >= 18:  # Controleer of alle velden aanwezig zijn
-                    # Debug: print eerste rij om kolommen te zien
-                    if row_index == 0:
-                        print(f"CSV Headers: {row}")
-                    
-                    # Kolom mapping voor routemeister_27062025 formaat - aangepast voor CSV structuur
-                    patient_id = row[1]          # Kolom B (was row[0])
-                    achternaam = row[2]          # Kolom C (was row[2])
-                    voornaam = row[3]            # Kolom D (was row[3])
-                    adres_volledig = row[6]      # Kolom G (was row[6])
-                    plaats = row[8]              # Kolom I (was row[8])
-                    postcode = row[9]            # Kolom J (was row[9])
-                    telefoon1 = row[10]          # Kolom K (was row[11])
-                    telefoon2 = row[11]          # Kolom L (was row[12])
-                    afspraak_datum = row[15]     # Kolom P (was row[15])
-                    eerste_behandeling_tijd = row[17] if len(row) > 17 else "0800"   # Kolom R (was row[17])
-                    laatste_behandeling_tijd = row[18] if len(row) > 18 else "1600"  # Kolom S (was row[18])
-                    
-                    # Skip lege rijen
-                    if not patient_id or not voornaam:
-                        continue
-                    
-                    # Combineer voor- en achternaam
-                    volledige_naam = f"{voornaam} {achternaam}".strip()
-                    telefoon = telefoon1 if telefoon1 else telefoon2
-                    
-                    # Converteer datum en tijd
-                    try:
-                        # Gebruik datum van vandaag in plaats van datum uit CSV
-                        today = date.today()
-                        dag = today.day
-                        maand = today.month
-                        jaar = today.year
-                        
-                        # Parse eerste behandeling tijd: bijv "0805" naar 08:05
-                        if eerste_behandeling_tijd and len(eerste_behandeling_tijd) >= 4:
-                            start_uur = eerste_behandeling_tijd[:2]
-                            start_minuut = eerste_behandeling_tijd[2:4]
-                        else:
-                            start_uur = "08"
-                            start_minuut = "00"
-                        
-                        # Parse laatste behandeling tijd voor eind_behandel_tijd
-                        if laatste_behandeling_tijd and len(laatste_behandeling_tijd) >= 4:
-                            eind_uur = laatste_behandeling_tijd[:2]
-                            eind_minuut = laatste_behandeling_tijd[2:4]
-                        else:
-                            eind_uur = "16"
-                            eind_minuut = "00"
-                        
-                        ophaal_tijd = datetime(
-                            year=int(jaar),
-                            month=int(maand), 
-                            day=int(dag),
-                            hour=int(start_uur),
-                            minute=int(start_minuut)
-                        )
-                        
-                        eind_behandel_tijd = datetime(
-                            year=int(jaar),
-                            month=int(maand), 
-                            day=int(dag),
-                            hour=int(eind_uur),
-                            minute=int(eind_minuut)
-                        )
-                        
-                        # Zoek of patient al bestaat (op naam en datum)
-                        patient, created = Patient.objects.get_or_create(
-                            naam=volledige_naam,
-                            ophaal_tijd=ophaal_tijd,
-                            defaults={
-                                'straat': adres_volledig,
-                                'postcode': postcode,
-                                'plaats': plaats,
-                                'telefoonnummer': telefoon,
-                                'eind_behandel_tijd': eind_behandel_tijd,
-                                'bestemming': 'Routemeister Transport',  # Default bestemming
-                                'status': 'nieuw'
-                            }
-                        )
-                        
-                        if created:
-                            patients_created += 1
-                        else:
-                            patients_updated += 1
-                            # Update bestaande patiënt met nieuwe data indien nodig
-                            patient.straat = adres_volledig
-                            patient.postcode = postcode
-                            patient.plaats = plaats
-                            patient.telefoonnummer = telefoon
-                            patient.eind_behandel_tijd = eind_behandel_tijd
-                            patient.save()
-                            
-                    except (ValueError, IndexError) as e:
-                        error_msg = f"Fout bij parsen rij {row_index+1}: {e} - Rij overgeslagen."
-                        error_rows.append(error_msg)
-                        messages.warning(request, error_msg)
-                        continue  # Skip rijen met foute data
+                if len(row) >= 21:
+                    csv_rows.append({
+                        'data': row,
+                        'row_index': row_index
+                    })
+            
+            # Verwerk CSV met cache manager
+            cache_results = PatientCacheManager.bulk_update_patients_from_csv(csv_rows, detection_result)
+            
+            patients_created = cache_results['created']
+            patients_updated = cache_results['updated']
+            patients_cached = cache_results['cached']
+            
+            print(f"💾 Cache resultaten: {patients_cached} patiënten uit cache")
             
             # Update CSV log met resultaten
             csv_log.total_patients = total_rows
@@ -1016,7 +1056,7 @@ def route_results(request):
     selected_timeslot_ids = request.session.get('planning_data', {}).get('timeslots', [])
     selected_timeslots = []
     if selected_timeslot_ids:
-        selected_timeslots = TimeSlot.objects.filter(id__in=selected_timeslot_ids).order_by('heen_start_tijd')
+        selected_timeslots = TimeSlot.objects.filter(id__in=selected_timeslot_ids).order_by('aankomst_tijd')
     
     context = {
         'routes': processed_routes,
@@ -1150,7 +1190,7 @@ def timeslots_overview(request):
     """
     Overzicht van alle tijdblokken met mooie UI
     """
-    timeslots = TimeSlot.objects.all().order_by('heen_start_tijd')
+    timeslots = TimeSlot.objects.all().order_by('aankomst_tijd')
     
     # Groepeer per type
     halen_timeslots = timeslots.filter(naam__icontains='Halen')
@@ -2049,580 +2089,16 @@ def validate_csv_row(row, row_number):
     return validate_csv_row_flexible(row, row_number, 'routemeister')
 
 
-def new_planning(request):
-    """
-    Stap 1: Nieuwe planning setup (voertuigen + tijdblokken + CSV upload)
-    """
-    if request.method == 'POST':
-        # 🧹 CLEAR: Verwijder vorige planning data bij nieuwe planning
-        print("🧹 Clearing previous planning data...")
-        
-        # Clear session data
-        request.session.pop('selected_vehicles', None)
-        request.session.pop('selected_timeslots', None)
-        request.session.pop('planning_started', None)
-        request.session.pop('planning_complete', None)
-        request.session.pop('planning_results', None)
-        request.session.pop('planning_data', None)
-        
-        # Clear OptaPlanner state
-        try:
-            clear_response = requests.get(f"{optaplanner_service.base_url}/api/clear", timeout=5)
-            if clear_response.ok:
-                print("✅ OptaPlanner cleared")
-            else:
-                print("⚠️ OptaPlanner clear failed")
-        except Exception as e:
-            print(f"⚠️ OptaPlanner clear error: {e}")
-        
-        # Clear oude patiënten van vandaag
-        from datetime import date
-        today = date.today()
-        old_patients = Patient.objects.filter(ophaal_tijd__date=today)
-        old_count = old_patients.count()
-        old_patients.delete()
-        print(f"🗑️ {old_count} oude patiënten van vandaag verwijderd")
-        
-        print("✅ Previous planning data cleared")
-        # Verwerk form data
-        selected_vehicles = request.POST.getlist('vehicles')
-        selected_timeslots = request.POST.getlist('timeslots')
-        csv_file = request.FILES.get('csv_file')
-        
-        # Valideer input
-        if not selected_vehicles:
-            messages.error(request, 'Selecteer minimaal één voertuig.')
-            return redirect('new_planning')
-        
-        if not selected_timeslots:
-            messages.error(request, 'Selecteer minimaal één tijdblok.')
-            return redirect('new_planning')
-        
-        if not csv_file:
-            messages.error(request, 'Upload een CSV bestand.')
-            return redirect('new_planning')
-        
-        # Verwerk CSV/SLK bestand
-        try:
-            # Probeer verschillende encodings
-            file_bytes = csv_file.read()
-            file_data = None
-            
-            # Probeer verschillende encodings in volgorde van waarschijnlijkheid
-            encodings = ['utf-8', 'windows-1252', 'iso-8859-1', 'cp1252', 'latin-1']
-            
-            for encoding in encodings:
-                try:
-                    file_data = file_bytes.decode(encoding)
-                    break
-                except UnicodeDecodeError:
-                    continue
-            
-            if file_data is None:
-                messages.error(request, 'Kan het bestand niet lezen. Controleer de encoding.')
-                return redirect('new_planning')
-            
-            # Check of het een SLK bestand is
-            is_slk = csv_file.name.lower().endswith('.slk')
-            
-            if is_slk:
-                # Parse SLK bestand
-                slk_data = parse_slk_file(file_data)
-                if not slk_data:
-                    messages.error(request, 'Kan het SLK bestand niet parsen.')
-                    return redirect('new_planning')
-                
-                # Converteer SLK data naar CSV formaat voor verdere verwerking
-                csv_data = convert_slk_to_csv(slk_data)
-            else:
-                # Normale CSV verwerking
-                csv_data = file_data
-            
-            # 🤖 Slimme Auto-Detectie
-            csv_reader = csv.reader(io.StringIO(csv_data), delimiter=';')
-            csv_data = list(csv_reader)
-            
-            # Gebruik auto-detectie
-            detection_result = auto_detect_csv_mapping(csv_data, csv_file.name)
-            csv_format = detection_result['detected_format']
-            
-            print(f"🤖 Auto-detectie resultaat:")
-            print(f"   Formaat: {csv_format}")
-            print(f"   Betrouwbaarheid: {detection_result['confidence']:.1%}")
-            print(f"   Mapping: {detection_result['mappings']}")
-            
-            if detection_result['warnings']:
-                print(f"   ⚠️ Waarschuwingen: {detection_result['warnings']}")
-            
-            if detection_result['suggestions']:
-                print(f"   💡 Suggesties: {detection_result['suggestions']}")
-            
-            # CSV Preview functionaliteit
-            csv_preview = []
-            csv_errors = []
-            
-            # Lees eerste 5 rijen voor preview
-            for row_index, row in enumerate(csv_data[:5]):
-                if row_index == 0:
-                    # Header rij
-                    csv_preview.append({
-                        'row_number': row_index + 1,
-                        'type': 'header',
-                        'data': row,
-                        'status': 'ok',
-                        'format': csv_format,
-                        'detection_confidence': detection_result['confidence']
-                    })
-                else:
-                    # Data rij
-                    mapping = detection_result['mappings']
-                    min_columns = max(mapping.values()) + 1
-                    
-                    if len(row) >= min_columns:
-                        # Valideer data met flexibele parser
-                        validation_result = validate_csv_row_flexible(row, row_index + 1, csv_format)
-                        csv_preview.append({
-                            'row_number': row_index + 1,
-                            'type': 'data',
-                            'data': row,
-                            'status': validation_result['status'],
-                            'errors': validation_result.get('errors', []),
-                            'format': csv_format,
-                            'detection_confidence': detection_result['confidence']
-                        })
-                        if validation_result['status'] == 'error':
-                            csv_errors.append(validation_result)
-                    else:
-                        csv_preview.append({
-                            'row_number': row_index + 1,
-                            'type': 'data',
-                            'data': row,
-                            'status': 'error',
-                            'errors': [f'Onvoldoende kolommen: {len(row)} (verwacht: {min_columns}+)'],
-                            'format': csv_format,
-                            'detection_confidence': detection_result['confidence']
-                        })
-                        csv_errors.append({
-                            'row': row_index + 1,
-                            'errors': [f'Onvoldoende kolommen: {len(row)} (verwacht: {min_columns}+)']
-                        })
-            
-            # Als er errors zijn, toon preview en stop
-            if csv_errors:
-                context = {
-                    'available_vehicles': Vehicle.objects.filter(status='beschikbaar'),
-                    'active_timeslots': TimeSlot.objects.filter(actief=True).order_by('heen_start_tijd'),
-                    'csv_preview': csv_preview,
-                    'csv_errors': csv_errors,
-                    'csv_file_name': csv_file.name,
-                    'selected_vehicles': selected_vehicles,
-                    'selected_timeslots': selected_timeslots,
-                    'csv_format': csv_format,
-                    'detection_result': detection_result
-                }
-                return render(request, 'planning/csv_preview.html', context)
-            
-            # Reset file pointer voor volledige verwerking
-            csv_file.seek(0)
-            file_bytes = csv_file.read()
-            file_data = file_bytes.decode(encodings[0])  # Gebruik de encoding die werkte
-            csv_reader = csv.reader(io.StringIO(file_data), delimiter=';')
-            
-            patients_created = 0
-            patients_updated = 0
-            
-            for row_index, row in enumerate(csv_reader):
-                mapping = get_column_mapping(csv_format)
-                min_columns = max(mapping.values()) + 1
-                
-                if len(row) >= min_columns:
-                    # Skip header rij
-                    if row_index == 0:
-                        continue
-                    
-                    # Haal data op basis van mapping
-                    patient_id = row[mapping['patient_id']] if mapping['patient_id'] < len(row) else ""
-                    achternaam = row[mapping['achternaam']] if mapping['achternaam'] < len(row) else ""
-                    voornaam = row[mapping['voornaam']] if mapping['voornaam'] < len(row) else ""
-                    adres_volledig = row[mapping['adres']] if mapping['adres'] < len(row) else ""
-                    plaats = row[mapping['plaats']] if mapping['plaats'] < len(row) else ""
-                    postcode = row[mapping['postcode']] if mapping['postcode'] < len(row) else ""
-                    telefoon1 = row[mapping['telefoon1']] if mapping['telefoon1'] < len(row) else ""
-                    telefoon2 = row[mapping['telefoon2']] if mapping['telefoon2'] < len(row) else ""
-                    afspraak_datum = row[mapping['datum']] if mapping['datum'] < len(row) else ""
-                    eerste_behandeling_tijd = row[mapping['start_tijd']] if mapping['start_tijd'] < len(row) else "0800"
-                    laatste_behandeling_tijd = row[mapping['eind_tijd']] if mapping['eind_tijd'] < len(row) else "1600"
-                    
-                    # Skip lege rijen
-                    if not patient_id or not voornaam:
-                        continue
-                    
-                    # Combineer voor- en achternaam
-                    volledige_naam = f"{voornaam} {achternaam}".strip()
-                    telefoon = telefoon1 if telefoon1 else telefoon2
-                    
-                    # Converteer datum en tijd
-                    try:
-                        # Parse datum: 14-8-2025 (D-M-YYYY formaat)
-                        if '-' in afspraak_datum:
-                            dag, maand, jaar = afspraak_datum.split('-')
-                        elif '.' in afspraak_datum:
-                            dag, maand, jaar = afspraak_datum.split('.')
-                        else:
-                            continue  # Skip als datum niet te parsen is
-                        
-                        # Parse eerste behandeling tijd: bijv "0805" naar 08:05
-                        if eerste_behandeling_tijd and len(eerste_behandeling_tijd) >= 4:
-                            start_uur = eerste_behandeling_tijd[:2]
-                            start_minuut = eerste_behandeling_tijd[2:4]
-                        else:
-                            start_uur = "08"
-                            start_minuut = "00"
-                        
-                        # Parse laatste behandeling tijd voor eind_behandel_tijd
-                        if laatste_behandeling_tijd and len(laatste_behandeling_tijd) >= 4:
-                            eind_uur = laatste_behandeling_tijd[:2]
-                            eind_minuut = laatste_behandeling_tijd[2:4]
-                        else:
-                            eind_uur = "16"
-                            eind_minuut = "00"
-                        
-                        ophaal_tijd = datetime(
-                            year=int(jaar),
-                            month=int(maand), 
-                            day=int(dag),
-                            hour=int(start_uur),
-                            minute=int(start_minuut)
-                        )
-                        
-                        eind_behandel_tijd = datetime(
-                            year=int(jaar),
-                            month=int(maand), 
-                            day=int(dag),
-                            hour=int(eind_uur),
-                            minute=int(eind_minuut)
-                        )
-                        
-                        # Zoek of patient al bestaat (op naam en datum)
-                        patient, created = Patient.objects.get_or_create(
-                            naam=volledige_naam,
-                            ophaal_tijd=ophaal_tijd,
-                            defaults={
-                                'straat': adres_volledig,
-                                'postcode': postcode,
-                                'plaats': plaats,
-                                'telefoonnummer': telefoon,
-                                'eind_behandel_tijd': eind_behandel_tijd,
-                                'bestemming': 'Routemeister Transport',  # Default bestemming
-                                'status': 'nieuw'
-                            }
-                        )
-                        
-                        if created:
-                            patients_created += 1
-                        else:
-                            patients_updated += 1
-                            # Update bestaande patiënt met nieuwe data indien nodig
-                            patient.straat = adres_volledig
-                            patient.postcode = postcode
-                            patient.plaats = plaats
-                            patient.telefoonnummer = telefoon
-                            patient.eind_behandel_tijd = eind_behandel_tijd
-                            patient.save()
-                            
-                    except (ValueError, IndexError) as e:
-                        messages.warning(request, f"Fout bij parsen rij {row_index+1}: {e} - Rij overgeslagen.")
-                        continue  # Skip rijen met foute data
-            
-            # Sla planning data op in session
-            request.session['planning_data'] = {
-                'vehicles': selected_vehicles,
-                'timeslots': selected_timeslots,
-                'csv_file_name': csv_file.name,
-                'patients_created': patients_created,
-                'patients_updated': patients_updated,
-                'csv_date': ophaal_tijd.date().isoformat() if 'ophaal_tijd' in locals() else date.today().isoformat()
-            }
-            
-            # Voer geocoding uit voor alle nieuwe patiënten zonder coördinaten
-            patients_without_coords = Patient.objects.filter(
-                latitude__isnull=True, 
-                longitude__isnull=True,
-                ophaal_tijd__date=today
-            )
-            
-            geocoded_count = 0
-            if patients_without_coords.exists():
-                print(f"🗺️ Geocoding {patients_without_coords.count()} patiënten...")
-                
-                for patient in patients_without_coords:
-                    if patient.straat and patient.postcode and patient.plaats:
-                        # Gebruik direct fallback coördinaten om CORB/timeout problemen te voorkomen
-                        lat, lon = get_default_coordinates(patient.plaats)
-                        patient.latitude = lat
-                        patient.longitude = lon
-                        patient.save()
-                        geocoded_count += 1
-                        
-                        # Markeer voor latere geocoding (optioneel)
-                        patient.geocoding_status = 'pending'
-                        patient.save()
-                
-                print(f"✅ {geocoded_count} patiënten voorzien van standaard coördinaten")
-                print("💡 Geocoding wordt later uitgevoerd om performance te verbeteren")
-            
-            if geocoded_count > 0:
-                messages.success(request, f'CSV succesvol verwerkt! {patients_created} nieuwe patiënten toegevoegd, {patients_updated} bestaande gevonden. {geocoded_count} patiënten voorzien van coördinaten.')
-            else:
-                messages.success(request, f'CSV succesvol verwerkt! {patients_created} nieuwe patiënten toegevoegd, {patients_updated} bestaande gevonden.')
-            
-            # Ga naar stap 2
-            return redirect('planning_step2')
-            
-        except Exception as e:
-            messages.error(request, f'Fout bij verwerken CSV: {str(e)}')
-            return redirect('new_planning')
-    
-    # GET request - toon setup form
-    available_vehicles = Vehicle.objects.filter(status='beschikbaar')
-    active_timeslots = TimeSlot.objects.filter(actief=True).order_by('heen_start_tijd')
-    
-    # Haal default geselecteerde tijdblokken op
-    default_timeslots = TimeSlot.objects.filter(actief=True, default_selected=True).values_list('id', flat=True)
-    
-    context = {
-        'available_vehicles': available_vehicles,
-        'active_timeslots': active_timeslots,
-        'default_timeslots': list(default_timeslots),
-    }
-    
-    return render(request, 'planning/new_planning.html', context)
+# Oude planning functie verwijderd - vervangen door wizard
 
 
 def planning_step2(request):
     """
     Stap 2: Patiënten overzicht per tijdblok + Akkoord/Terug
     """
-    planning_data = request.session.get('planning_data')
-    if not planning_data:
-        messages.error(request, 'Geen planning data gevonden. Start opnieuw.')
-        return redirect('planning_overview')
-    
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if action == 'akkoord':
-            # Wijs patiënten toe aan tijdblokken
-            try:
-                from django.core.management import call_command
-                from io import StringIO
-                
-                # Capture output van management command
-                out = StringIO()
-                call_command('assign_halen_bringen', stdout=out)
-                
-                # Parse resultaten voor feedback
-                output_lines = out.getvalue().split('\n')
-                fully_assigned = 0
-                partial_assigned = 0
-                
-                for line in output_lines:
-                    if '✅ Volledig toegewezen:' in line:
-                        fully_assigned = int(line.split(':')[1].strip())
-                    elif '⚠️  Gedeeltelijk toegewezen:' in line:
-                        partial_assigned = int(line.split(':')[1].strip())
-                
-                # Update planning data
-                planning_data['fully_assigned'] = fully_assigned
-                planning_data['partial_assigned'] = partial_assigned
-                request.session['planning_data'] = planning_data
-                
-                # Ga naar stap 3 (planner keuze)
-                return redirect('planning_step3')
-                
-            except Exception as e:
-                messages.error(request, f'Fout bij toewijzing patiënten: {str(e)}')
-                return redirect('planning_step2')
-                
-        elif action == 'terug':
-            return redirect('new_planning')
-    
-    # DEBUG: Toon alle beschikbare data voor troubleshooting
-    debug_info = {}
-    
-    # Haal CSV datum op uit planning data
-    csv_date = planning_data.get('csv_date')
-    debug_info['csv_date'] = csv_date
-    
-    # Haal alle patiënten op (niet alleen van vandaag)
-    all_patients = Patient.objects.all().order_by('-created_at')
-    debug_info['total_patients_in_db'] = all_patients.count()
-    
-    # Haal patiënten op van verschillende datums voor debugging
-    from datetime import date, timedelta
-    today = date.today()
-    
-    # Patiënten van vandaag
-    today_patients = Patient.objects.filter(ophaal_tijd__date=today)
-    debug_info['today_patients'] = today_patients.count()
-    
-    # Patiënten van gisteren
-    yesterday = today - timedelta(days=1)
-    yesterday_patients = Patient.objects.filter(ophaal_tijd__date=yesterday)
-    debug_info['yesterday_patients'] = yesterday_patients.count()
-    
-    # Patiënten van de CSV datum (als die bestaat)
-    if csv_date:
-        try:
-            csv_date_obj = date.fromisoformat(csv_date)
-            csv_date_patients = Patient.objects.filter(ophaal_tijd__date=csv_date_obj)
-            debug_info['csv_date_patients'] = csv_date_patients.count()
-            debug_info['csv_date_obj'] = csv_date_obj
-        except (ValueError, TypeError):
-            debug_info['csv_date_error'] = f"Ongeldige CSV datum: {csv_date}"
-            csv_date_patients = Patient.objects.none()
-    else:
-        csv_date_patients = Patient.objects.none()
-        debug_info['csv_date_error'] = "Geen CSV datum gevonden"
-    
-    # Bepaal welke patiënten te gebruiken voor planning
-    # Prioriteit: CSV datum > vandaag > alle patiënten
-    if csv_date_patients.exists():
-        planning_patients = csv_date_patients
-        debug_info['using_patients_from'] = f"CSV datum: {csv_date}"
-    elif today_patients.exists():
-        planning_patients = today_patients
-        debug_info['using_patients_from'] = f"Vandaag: {today}"
-    else:
-        # Gebruik alle patiënten als fallback
-        planning_patients = all_patients
-        debug_info['using_patients_from'] = "Alle patiënten (fallback)"
-    
-    debug_info['planning_patients_count'] = planning_patients.count()
-    
-    # Toon sample patiënt data voor debugging
-    if planning_patients.exists():
-        sample_patient = planning_patients.first()
-        debug_info['sample_patient'] = {
-            'naam': sample_patient.naam,
-            'ophaal_tijd': sample_patient.ophaal_tijd,
-            'eind_behandel_tijd': sample_patient.eind_behandel_tijd,
-            'status': sample_patient.status,
-            'latitude': sample_patient.latitude,
-            'longitude': sample_patient.longitude,
-            'created_at': sample_patient.created_at
-        }
-    
-    # Groepeer patiënten per halen en brengen tijdblok
-    patients_by_halen_timeslot = {}
-    patients_by_bringen_timeslot = {}
-    
-    for patient in planning_patients:
-        # Bepaal geschikt tijdblok op basis van ophaal_tijd
-        patient_time = patient.ophaal_tijd.time()
-        end_time = patient.eind_behandel_tijd.time()
-        
-        # Zoek geschikt halen tijdblok (nieuwe logica)
-        halen_timeslot = None
-        for timeslot_id in planning_data['timeslots']:
-            try:
-                timeslot = TimeSlot.objects.get(id=timeslot_id)
-                if (timeslot.heen_start_tijd and 
-                    patient_time >= timeslot.heen_start_tijd):
-                    # Vind het juiste tijdblok (meest recente die past)
-                    if not halen_timeslot or timeslot.heen_start_tijd > halen_timeslot.heen_start_tijd:
-                        halen_timeslot = timeslot
-            except TimeSlot.DoesNotExist:
-                continue
-        
-        # Zoek geschikt brengen tijdblok (nieuwe logica)
-        brengen_timeslot = None
-        for timeslot_id in planning_data['timeslots']:
-            try:
-                timeslot = TimeSlot.objects.get(id=timeslot_id)
-                if (timeslot.terug_start_tijd and 
-                    end_time <= timeslot.terug_start_tijd):
-                    # Vind het eerste beschikbare tijdblok na eind tijd
-                    if not brengen_timeslot or timeslot.terug_start_tijd < brengen_timeslot.terug_start_tijd:
-                        brengen_timeslot = timeslot
-            except TimeSlot.DoesNotExist:
-                continue
-        
-        # Voeg toe aan halen overzicht
-        if halen_timeslot:
-            if halen_timeslot.id not in patients_by_halen_timeslot:
-                patients_by_halen_timeslot[halen_timeslot.id] = {
-                    'timeslot': halen_timeslot,
-                    'type': 'halen',
-                    'patients': []
-                }
-            patients_by_halen_timeslot[halen_timeslot.id]['patients'].append({
-                'patient': patient,
-                'halen_timeslot': halen_timeslot,
-                'bringen_timeslot': brengen_timeslot
-            })
-        
-        # Voeg toe aan brengen overzicht
-        if brengen_timeslot:
-            if brengen_timeslot.id not in patients_by_bringen_timeslot:
-                patients_by_bringen_timeslot[brengen_timeslot.id] = {
-                    'timeslot': brengen_timeslot,
-                    'type': 'brengen',
-                    'patients': []
-                }
-            patients_by_bringen_timeslot[brengen_timeslot.id]['patients'].append({
-                'patient': patient,
-                'halen_timeslot': halen_timeslot,
-                'bringen_timeslot': brengen_timeslot
-            })
-    
-    # Sorteer tijdblokken op tijd (oplopend)
-    # Halen tijdblokken sorteren op heen_start_tijd
-    sorted_halen_timeslots = sorted(
-        patients_by_halen_timeslot.values(), 
-        key=lambda x: x['timeslot'].heen_start_tijd
-    )
-    
-    # Brengen tijdblokken sorteren op terug_start_tijd
-    sorted_bringen_timeslots = sorted(
-        patients_by_bringen_timeslot.values(), 
-        key=lambda x: x['timeslot'].terug_start_tijd
-    )
-    
-    # Tel patiënten met en zonder coördinaten
-    patients_with_coords = planning_patients.filter(latitude__isnull=False, longitude__isnull=False).count()
-    patients_without_coords = planning_patients.filter(latitude__isnull=True, longitude__isnull=True).count()
-    
-    # Tel patiënten per status
-    patients_nieuw = planning_patients.filter(status='nieuw').count()
-    patients_other_status = planning_patients.exclude(status='nieuw').count()
-    
-    # Tel patiënten die geen tijdblok hebben gekregen
-    patients_without_timeslot = planning_patients.count() - (
-        sum(len(group['patients']) for group in patients_by_halen_timeslot.values()) +
-        sum(len(group['patients']) for group in patients_by_bringen_timeslot.values())
-    )
-    
-    debug_info['patients_without_timeslot'] = patients_without_timeslot
-    debug_info['patients_with_halen_timeslot'] = sum(len(group['patients']) for group in patients_by_halen_timeslot.values())
-    debug_info['patients_with_bringen_timeslot'] = sum(len(group['patients']) for group in patients_by_bringen_timeslot.values())
-    
-    context = {
-        'planning_data': planning_data,
-        'patients_by_halen_timeslot': patients_by_halen_timeslot,
-        'patients_by_bringen_timeslot': patients_by_bringen_timeslot,
-        'sorted_halen_timeslots': sorted_halen_timeslots,
-        'sorted_bringen_timeslots': sorted_bringen_timeslots,
-        'total_patients': planning_patients.count(),
-        'patients_with_coords': patients_with_coords,
-        'patients_without_coords': patients_without_coords,
-        'patients_nieuw': patients_nieuw,
-        'patients_other_status': patients_other_status,
-        'geocoding_complete': patients_without_coords == 0,
-        'debug_info': debug_info,  # Voeg debug info toe aan context
-        'show_debug': True  # Toon debug informatie
-    }
-    
-    return render(request, 'planning/planning_step2.html', context)
+    # Deze functie is vervangen door de wizard
+    messages.info(request, 'Deze functie is vervangen door de nieuwe Planning Wizard.')
+    return redirect('planning_wizard_start')
 
 
 def planning_step3(request):
@@ -2718,7 +2194,7 @@ def assign_timeslots_to_patients(patients):
     from .models import TimeSlot
     
     # Haal alleen geselecteerde tijdblokken op
-    selected_timeslots = TimeSlot.objects.filter(actief=True, default_selected=True).order_by('heen_start_tijd')
+    selected_timeslots = TimeSlot.objects.filter(actief=True, default_selected=True).order_by('aankomst_tijd')
     
     assigned_count = 0
     
@@ -2739,19 +2215,20 @@ def assign_timeslots_to_patients(patients):
                 if not ts.naam.startswith('Holen'):
                     continue
                 
-                current_block_start = ts.heen_start_tijd
+                current_block_start = ts.aankomst_tijd
                 
                 # Zoek volgende Halen tijdblok
                 next_block_start = None
                 for j in range(i + 1, len(selected_timeslots)):
                     next_ts = selected_timeslots[j]
-                    if next_ts.naam.startswith('Holen'):
-                        next_block_start = next_ts.heen_start_tijd
+                    if next_ts.tijdblok_type == 'halen':
+                        next_block_start = next_ts.aankomst_tijd
                         break
                 
-                # Als er geen volgende Halen tijdblok is, gebruik dan het einde van het huidige blok
+                # Als er geen volgende Halen tijdblok is, gebruik dan 90 minuten na huidige tijd
                 if next_block_start is None:
-                    next_block_start = ts.heen_eind_tijd
+                    from datetime import timedelta
+                    next_block_start = (datetime.combine(datetime.today(), ts.aankomst_tijd) + timedelta(minutes=90)).time()
                 
                 # Check of patiënt tijd valt tussen huidige blok start en volgende blok start
                 if current_block_start <= first_appointment_time < next_block_start:
@@ -2763,16 +2240,16 @@ def assign_timeslots_to_patients(patients):
         if patient.eind_behandel_tijd:
             end_time = patient.eind_behandel_tijd.time()
             
-            # Zoek eerste tijdblok waar eind tijd <= terug_start_tijd
+            # Zoek eerste tijdblok waar eind tijd >= aankomst_tijd
             for ts in selected_timeslots:
-                if ts.naam.startswith('Bringen') and end_time <= ts.terug_start_tijd:
+                if ts.tijdblok_type == 'brengen' and end_time >= ts.aankomst_tijd:
                     brengen_timeslot = ts
                     break
             
             # Fallback: zoek laatste beschikbare tijdblok als geen match
             if not brengen_timeslot:
                 for ts in reversed(list(selected_timeslots)):
-                    if ts.naam.startswith('Bringen'):
+                    if ts.tijdblok_type == 'brengen':
                         brengen_timeslot = ts
                         break
         
@@ -3068,6 +2545,216 @@ def get_default_coordinates(plaats):
         return (50.746702862, 7.151631000)  # Reha Center
 
 
+def planning_new(request):
+    """
+    Nieuwe planning interface met moderne UI/UX gebaseerd op SVG design
+    """
+    from datetime import date
+    
+    # Get today's date
+    today = date.today()
+    
+    # Get patients for today (including those from wizard/CSV upload)
+    patients = Patient.objects.filter(
+        ophaal_tijd__date=today
+    ).select_related('halen_tijdblok', 'bringen_tijdblok', 'toegewezen_voertuig')
+    
+    # Get vehicles
+    vehicles = Vehicle.objects.filter(status='beschikbaar')
+    
+    # Get timeslots - use all timeslots for timeline
+    timeslots = TimeSlot.objects.filter(actief=True).order_by('aankomst_tijd')
+    
+    # Get unique timeslot times for timeline segments - only show timeslots that have patients
+    timeline_segments = []
+    used_timeslots = set()
+    
+    # Get timeslots that actually have patients assigned
+    for patient in patients:
+        if patient.toegewezen_tijdblok:
+            used_timeslots.add(patient.toegewezen_tijdblok.id)
+    
+    # Only include timeslots that have patients
+    for timeslot in timeslots:
+        if timeslot.id in used_timeslots:
+            time_str = timeslot.aankomst_tijd.strftime('%H:%M')
+            if time_str not in [seg['time'] for seg in timeline_segments]:
+                timeline_segments.append({
+                    'time': time_str,
+                    'timeslot_id': timeslot.id,
+                    'type': timeslot.tijdblok_type,
+                    'name': timeslot.naam
+                })
+    
+    # Sort timeline segments by time
+    timeline_segments.sort(key=lambda x: x['time'])
+    
+    # Check for route data from wizard
+    wizard_routes = request.session.get('google_maps_routes', {})
+    optimized_routes = wizard_routes.get('optimized_routes', {})
+    route_statistics = wizard_routes.get('statistics', {})
+    
+    # Group patients by vehicles for the planning interface
+    vehicle_assignments = []
+    vehicle_colors = ['red', 'orange', 'green', 'purple', 'blue']
+    
+    # If we have optimized routes from wizard, use those
+    if optimized_routes:
+        # Create vehicle assignments based on optimized routes
+        for timeslot_id, timeslot_data in optimized_routes.items():
+            for route in timeslot_data.get('routes', []):
+                vehicle_id = route.get('vehicle_id', 'Unknown')
+                vehicle_name = route.get('vehicle_name', 'Unknown Vehicle')
+                route_patients = route.get('patients', [])
+                
+                # Find vehicle in database
+                try:
+                    vehicle = Vehicle.objects.get(
+                        models.Q(referentie=vehicle_id) | 
+                        models.Q(kenteken=vehicle_id)
+                    )
+                except Vehicle.DoesNotExist:
+                    # Create a placeholder vehicle assignment
+                    vehicle_assignments.append({
+                        'vehicle': {'referentie': vehicle_id, 'kenteken': vehicle_id},
+                        'patients': [],  # Will be populated with route patients
+                        'color': vehicle_colors[len(vehicle_assignments) % len(vehicle_colors)],
+                        'vehicle_id': vehicle_id,
+                        'route_data': route,
+                        'is_wizard_route': True
+                    })
+                    continue
+                
+                # Get actual patients from database that match route
+                route_patient_ids = []
+                for p in route_patients:
+                    # Handle both dict and string formats
+                    if isinstance(p, dict):
+                        patient_id = p.get('patient_id')
+                    elif isinstance(p, str):
+                        patient_id = p
+                    else:
+                        continue
+                        
+                    if patient_id:
+                        # Check if patient_id is numeric (database ID) or string (external ID)
+                        try:
+                            # Try to convert to int (database ID)
+                            int(patient_id)
+                            route_patient_ids.append(patient_id)
+                        except (ValueError, TypeError):
+                            # If it's a string (like 'FL25002609'), skip it for now
+                            # We'll handle external IDs differently
+                            continue
+                
+                if route_patient_ids:
+                    route_db_patients = patients.filter(id__in=route_patient_ids)
+                else:
+                    # If no valid patient IDs found, create empty queryset
+                    route_db_patients = patients.none()
+                
+                vehicle_assignments.append({
+                    'vehicle': vehicle,
+                    'patients': route_db_patients,
+                    'color': vehicle_colors[len(vehicle_assignments) % len(vehicle_colors)],
+                    'vehicle_id': vehicle_id,
+                    'route_data': route,
+                    'is_wizard_route': True
+                })
+    
+    # If no wizard routes or if we have patients but no wizard routes, use database assignments
+    if not vehicle_assignments or patients.exists():
+        # Get all vehicles that have assigned patients today
+        vehicles_with_patients = vehicles.filter(patient__ophaal_tijd__date=today).distinct()
+        
+        if vehicles_with_patients.exists():
+            for i, vehicle in enumerate(vehicles_with_patients[:5]):  # Limit to 5 vehicles for display
+                assigned_patients = patients.filter(toegewezen_voertuig=vehicle).order_by('ophaal_tijd')
+                vehicle_assignments.append({
+                    'vehicle': vehicle,
+                    'patients': assigned_patients,
+                    'color': vehicle_colors[i] if i < len(vehicle_colors) else 'blue',
+                    'vehicle_id': vehicle.referentie or vehicle.kenteken,
+                    'is_wizard_route': False
+                })
+        else:
+            # If no vehicles have patients, show all available vehicles
+            for i, vehicle in enumerate(vehicles[:5]):  # Limit to 5 vehicles for display
+                assigned_patients = patients.filter(toegewezen_voertuig=vehicle).order_by('ophaal_tijd')
+                vehicle_assignments.append({
+                    'vehicle': vehicle,
+                    'patients': assigned_patients,
+                    'color': vehicle_colors[i] if i < len(vehicle_colors) else 'blue',
+                    'vehicle_id': vehicle.referentie or vehicle.kenteken,
+                    'is_wizard_route': False
+                })
+    
+    # Get unassigned patients
+    unassigned_patients = patients.filter(toegewezen_voertuig__isnull=True)
+    
+    context = {
+        'planning_date': today,
+        'patients': patients,
+        'vehicles': vehicles,
+        'timeslots': timeslots,
+        'timeline_segments': timeline_segments,
+        'vehicle_assignments': vehicle_assignments,
+        'unassigned_patients': unassigned_patients,
+        'has_patients': patients.exists(),
+        'has_wizard_routes': bool(optimized_routes),
+        'route_statistics': route_statistics,
+        'wizard_routes': optimized_routes,
+    }
+    
+    return render(request, 'planning/planning_new.html', context)
+
+
+@csrf_exempt
+def api_update_patient_assignment(request):
+    """
+    API endpoint voor het bijwerken van patiënt toewijzingen via drag & drop
+    """
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            
+            patient_id = data.get('patient_id')
+            vehicle_reference = data.get('vehicle')
+            assignment_type = data.get('type', 'halen')
+            
+            # Get patient
+            try:
+                patient = Patient.objects.get(id=patient_id)
+            except Patient.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Patiënt niet gevonden'})
+            
+            # Get vehicle by reference or kenteken
+            try:
+                vehicle = Vehicle.objects.get(
+                    models.Q(referentie=vehicle_reference) | 
+                    models.Q(kenteken=vehicle_reference)
+                )
+            except Vehicle.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Voertuig niet gevonden'})
+            
+            # Update patient assignment
+            patient.toegewezen_voertuig = vehicle
+            patient.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Patiënt {patient.naam} toegewezen aan {vehicle.referentie or vehicle.kenteken}'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Ongeldige JSON data'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Alleen POST requests toegestaan'})
+
+
 def concept_planning(request):
     """
     Concept Planning Interface met Drag-and-Drop functionaliteit
@@ -3075,7 +2762,11 @@ def concept_planning(request):
     from .models_extended import PlanningSession, PlanningAction
     from datetime import date
     
-    # Check if user has planner permissions
+    # Check if user is authenticated and has planner permissions
+    if not request.user.is_authenticated:
+        messages.error(request, 'Je moet ingelogd zijn om concept planning te gebruiken.')
+        return redirect('home')
+    
     if not request.user.is_staff:
         messages.error(request, 'Geen toegang tot concept planning. Alleen planners en admins hebben toegang.')
         return redirect('home')
@@ -3211,8 +2902,8 @@ def concept_planning(request):
     # Group patients by timeslot and vehicle for halen
     halen_timeslots = []
     halen_slots = selected_timeslots.filter(
-        naam__icontains='Halen'
-    ).order_by('heen_start_tijd')
+        tijdblok_type='halen'
+    ).order_by('aankomst_tijd')
     
     for timeslot in halen_slots:
         timeslot_patients = patients.filter(halen_tijdblok=timeslot)
@@ -3242,8 +2933,8 @@ def concept_planning(request):
     # Group patients by timeslot and vehicle for bringen
     bringen_timeslots = []
     bringen_slots = selected_timeslots.filter(
-        naam__icontains='Bringen'
-    ).order_by('terug_start_tijd')
+        tijdblok_type='brengen'
+    ).order_by('aankomst_tijd')
     
     for timeslot in bringen_slots:
         timeslot_patients = patients.filter(bringen_tijdblok=timeslot)
@@ -4276,11 +3967,22 @@ def api_wizard_upload(request):
             # Valideer data
             validation_result = validate_csv_data_simple(csv_data, detection_result)
             
+            # Debug: Tel en log alle rijen
+            logger.info(f"🔍 CSV data analyse:")
+            logger.info(f"  Totaal aantal rijen: {len(csv_data)}")
+            
+            for i, row in enumerate(csv_data):
+                logger.info(f"  Rij {i}: type={row.get('type', 'unknown')}, data={row.get('data', [])[:3]}...")
+            
+            # Tel alleen data rijen (geen headers)
+            data_rows = [row for row in csv_data if row.get('type') == 'data']
+            logger.info(f"  Data rijen: {len(data_rows)}")
+            
             # Sla data op in session
             upload_data = {
                 'filename': uploaded_file.name,
                 'file_size': uploaded_file.size,
-                'patient_count': len(csv_data),
+                'patient_count': len(data_rows),  # Alleen data rijen tellen
                 'detection_result': detection_result,
                 'validation_result': validation_result,
                 'csv_data': csv_data[:10],  # Alleen eerste 10 rijen voor preview
@@ -4950,6 +4652,11 @@ def perform_auto_assignment(upload_data, constraints):
     # Converteer CSV data naar patiënten met tijden
     patients_with_times = []
     
+    # Check of er geocoded data beschikbaar is
+    geocoded_patients = upload_data.get('geocoded_patients', [])
+    if geocoded_patients:
+        print(f"🗺️ Geocoded data gevonden: {len(geocoded_patients)} patiënten")
+    
     for row in csv_data:
         if row.get('type') != 'data':
             continue
@@ -4965,6 +4672,11 @@ def perform_auto_assignment(upload_data, constraints):
             voornaam = data[mappings.get('voornaam', 2)] if mappings.get('voornaam') is not None else ""
             start_tijd_str = data[mappings.get('start_tijd', 3)] if mappings.get('start_tijd') is not None else ""
             eind_tijd_str = data[mappings.get('eind_tijd', 4)] if mappings.get('eind_tijd') is not None else ""
+            
+            # Haal adresgegevens op
+            straat = data[mappings.get('straat', 5)] if mappings.get('straat') is not None else ""
+            postcode = data[mappings.get('postcode', 6)] if mappings.get('postcode') is not None else ""
+            plaats = data[mappings.get('plaats', 7)] if mappings.get('plaats') is not None else ""
             
             # Converteer tijd strings naar time objects
             start_time = None
@@ -4991,12 +4703,30 @@ def perform_auto_assignment(upload_data, constraints):
                 except:
                     print(f"⚠️ Kon eind tijd niet parsen: {eind_tijd_str}")
             
+            # Zoek geocoded coördinaten voor deze patiënt
+            latitude = None
+            longitude = None
+            if geocoded_patients:
+                for geocoded in geocoded_patients:
+                    if (geocoded.get('patient_id') == patient_id or 
+                        geocoded.get('achternaam') == achternaam):
+                        if geocoded.get('geocoded'):
+                            latitude = geocoded.get('latitude')
+                            longitude = geocoded.get('longitude')
+                            print(f"✅ Geocoded coördinaten voor {achternaam}: {latitude}, {longitude}")
+                        break
+            
             patients_with_times.append({
                 'patient_id': patient_id,
                 'achternaam': achternaam,
                 'voornaam': voornaam,
+                'straat': straat,
+                'postcode': postcode,
+                'plaats': plaats,
                 'start_time': start_time.isoformat() if start_time else None,
                 'end_time': end_time.isoformat() if end_time else None,
+                'latitude': latitude,
+                'longitude': longitude,
                 'original_data': data
             })
             
@@ -5122,15 +4852,62 @@ def generate_routes_with_google_maps(planning_data):
     """
     Genereer routes met Google Maps API
     """
-    # Implementatie van route generatie
-    # Dit is een placeholder - echte implementatie volgt
-    return {
-        'route_count': 5,
-        'total_distance': 150,
-        'total_time': 180,
-        'total_cost': 75,
-        'routes': []
-    }
+    from .services.google_maps import google_maps_service
+    from .models import Vehicle
+    
+    try:
+        # Haal beschikbare voertuigen op
+        available_vehicles = list(Vehicle.objects.filter(status='beschikbaar'))
+        
+        if not available_vehicles:
+            logger.warning("Geen beschikbare voertuigen voor route generatie")
+            return {
+                'route_count': 0,
+                'total_distance': 0,
+                'total_time': 0,
+                'total_cost': 0,
+                'routes': [],
+                'error': 'Geen beschikbare voertuigen'
+            }
+        
+        # Gebruik Google Maps service voor route optimalisatie
+        # Voor nu, gebruik altijd fallback omdat Google Maps API niet correct geconfigureerd is
+        logger.info("Gebruik fallback optimalisatie (Google Maps API niet beschikbaar)")
+        optimized_routes = google_maps_service._fallback_optimization(planning_data, available_vehicles)
+        
+        # Bereken totale statistieken
+        total_distance = 0
+        total_time = 0
+        total_cost = 0
+        route_count = 0
+        
+        for timeslot_data in optimized_routes.values():
+            total_distance += timeslot_data.get('total_distance', 0)
+            total_time += timeslot_data.get('total_time', 0)
+            total_cost += timeslot_data.get('total_cost', 0)
+            route_count += timeslot_data.get('vehicle_count', 0)
+        
+        logger.info(f"Route generatie voltooid: {route_count} routes, {total_distance:.1f} km, €{total_cost:.2f}")
+        
+        return {
+            'route_count': route_count,
+            'total_distance': total_distance,
+            'total_time': total_time,
+            'total_cost': total_cost,
+            'routes': optimized_routes,
+            'success': True
+        }
+        
+    except Exception as e:
+        logger.error(f"Fout bij route generatie: {e}")
+        return {
+            'route_count': 0,
+            'total_distance': 0,
+            'total_time': 0,
+            'total_cost': 0,
+            'routes': [],
+            'error': str(e)
+        }
 
 
 def save_patients_from_wizard(upload_data, planning_data, session):
@@ -5271,3 +5048,543 @@ def parse_excel_file_simple(uploaded_file):
     except Exception as e:
         print(f"❌ Fout bij Excel parsing: {e}")
         return []
+
+def api_wizard_google_maps_routes(request):
+    """
+    API endpoint voor Google Maps route optimalisatie
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Alleen POST requests toegestaan'}, status=405)
+    
+    try:
+        # Check if this is a status check request
+        data = json.loads(request.body) if request.body else {}
+        if data.get('check_status'):
+            # Import Google Maps service
+            from .services.google_maps import google_maps_service
+            
+            if google_maps_service.is_enabled():
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Google Maps API is ingeschakeld'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'fallback_available': True,
+                    'message': 'Google Maps API is niet ingeschakeld, fallback beschikbaar'
+                })
+        
+        # Haal data op uit session of request body
+        wizard_data = request.session.get('wizard_planning_data', {})
+        if not wizard_data:
+            # Probeer data uit request body
+            if request.body:
+                try:
+                    request_data = json.loads(request.body)
+                    if 'test_timeslot' in request_data:
+                        # Gebruik test data uit request body
+                        timeslot_assignments = request_data
+                    else:
+                        return JsonResponse({'error': 'Geen planning data gevonden'}, status=400)
+                except json.JSONDecodeError:
+                    return JsonResponse({'error': 'Ongeldige JSON data'}, status=400)
+            else:
+                return JsonResponse({'error': 'Geen planning data gevonden'}, status=400)
+        else:
+            timeslot_assignments = wizard_data.get('timeslot_assignments', {})
+        if not timeslot_assignments:
+            return JsonResponse({'error': 'Geen tijdblok toewijzingen gevonden'}, status=400)
+        
+        # Haal beschikbare voertuigen op
+        from .models import Vehicle
+        available_vehicles = list(Vehicle.objects.filter(status='beschikbaar'))
+        
+        if not available_vehicles:
+            return JsonResponse({'error': 'Geen beschikbare voertuigen'}, status=400)
+        
+        # Import Google Maps service
+        from .services.google_maps import google_maps_service
+        
+        # Debug Google Maps status
+        logger.info(f"Google Maps enabled: {google_maps_service.is_enabled()}")
+        logger.info(f"Google Maps config: {google_maps_service.config}")
+        logger.info(f"API Key available: {google_maps_service.api_key is not None}")
+        
+        if not google_maps_service.is_enabled():
+            logger.info("Google Maps niet ingeschakeld, gebruik fallback")
+            # Gebruik fallback in plaats van error
+            optimized_routes = google_maps_service._fallback_optimization(timeslot_assignments, available_vehicles)
+        else:
+            logger.info("Google Maps ingeschakeld, start optimalisatie")
+            optimized_routes = google_maps_service.optimize_vehicle_routes(timeslot_assignments, available_vehicles)
+        
+        # Debug logging
+        logger.info(f"Timeslot assignments: {timeslot_assignments}")
+        logger.info(f"Available vehicles: {len(available_vehicles)}")
+        logger.info(f"Optimized routes result: {optimized_routes}")
+        
+        # Bereken totale statistieken
+        total_distance = 0
+        total_time = 0
+        total_cost = 0
+        total_vehicles = 0
+        
+        for timeslot_data in optimized_routes.values():
+            total_distance += timeslot_data.get('total_distance', 0)
+            total_time += timeslot_data.get('total_time', 0)
+            total_cost += timeslot_data.get('total_cost', 0)
+            total_vehicles += timeslot_data.get('vehicle_count', 0)
+        
+        # Sla resultaten op in session (zonder Vehicle objecten)
+        session_routes = {}
+        for timeslot_id, timeslot_data in optimized_routes.items():
+            session_routes[timeslot_id] = {
+                'routes': [],
+                'total_distance': timeslot_data.get('total_distance', 0),
+                'total_time': timeslot_data.get('total_time', 0),
+                'total_cost': timeslot_data.get('total_cost', 0),
+                'vehicle_count': timeslot_data.get('vehicle_count', 0)
+            }
+            
+            # Converteer routes naar JSON-serializable format
+            for route in timeslot_data.get('routes', []):
+                session_route = {
+                    'vehicle_id': route['vehicle'].referentie or route['vehicle'].kenteken if hasattr(route['vehicle'], 'referentie') else 'Unknown',
+                    'vehicle_name': str(route['vehicle']),
+                    'patients': route['patients'],
+                    'total_distance': route['total_distance'],
+                    'total_time': route['total_time'],
+                    'total_cost': route['total_cost']
+                }
+                session_routes[timeslot_id]['routes'].append(session_route)
+        
+        # Sla patiënten op in database na route optimalisatie
+        logger.info("💾 Sla patiënten op in database...")
+        saved_patients = []
+        
+        # Haal upload data op voor patiënt informatie
+        upload_data = request.session.get('wizard_upload_data', {})
+        csv_data = upload_data.get('csv_data', [])
+        detection_result = upload_data.get('detection_result', {})
+        mappings = detection_result.get('mappings', {})
+        
+        # Maak een mapping van patient_id naar CSV data
+        patient_csv_map = {}
+        for row in csv_data:
+            if row.get('data') and 'patient_id' in mappings:
+                patient_id = row['data'][mappings['patient_id']]
+                patient_csv_map[patient_id] = row['data']
+        
+        # Verwerk elke route en sla patiënten op
+        for timeslot_id, timeslot_data in optimized_routes.items():
+            for route in timeslot_data.get('routes', []):
+                vehicle = route['vehicle']
+                route_patients = route['patients']
+                
+                for patient_data in route_patients:
+                    # Haal patiënt informatie op
+                    if isinstance(patient_data, dict):
+                        patient_id = patient_data.get('patient_id')
+                        patient_name = patient_data.get('naam', '')
+                    else:
+                        patient_id = str(patient_data)
+                        patient_name = str(patient_data)
+                    
+                    # Zoek CSV data voor deze patiënt
+                    csv_row = patient_csv_map.get(patient_id)
+                    if csv_row:
+                        # Maak patiënt object aan
+                        try:
+                            from datetime import datetime, date
+                            
+                            # Bepaal datum (gebruik CSV datum of vandaag)
+                            csv_date = upload_data.get('csv_date')
+                            if csv_date:
+                                try:
+                                    patient_date = date.fromisoformat(csv_date)
+                                except ValueError:
+                                    patient_date = date.today()
+                            else:
+                                patient_date = date.today()
+                            
+                            # Bepaal tijden
+                            start_time_str = None
+                            end_time_str = None
+                            
+                            if 'start_tijd' in mappings and len(csv_row) > mappings['start_tijd']:
+                                start_time_str = csv_row[mappings['start_tijd']]
+                            
+                            if 'eind_tijd' in mappings and len(csv_row) > mappings['eind_tijd']:
+                                end_time_str = csv_row[mappings['eind_tijd']]
+                            
+                            # Parse tijden
+                            ophaal_tijd = None
+                            eind_behandel_tijd = None
+                            
+                            if start_time_str:
+                                try:
+                                    if ':' in start_time_str:
+                                        time_parts = start_time_str.split(':')
+                                        if len(time_parts) >= 2:
+                                            hour = int(time_parts[0])
+                                            minute = int(time_parts[1])
+                                            ophaal_tijd = datetime.combine(patient_date, datetime.min.time().replace(hour=hour, minute=minute))
+                                except (ValueError, TypeError):
+                                    pass
+                            
+                            if end_time_str:
+                                try:
+                                    if ':' in end_time_str:
+                                        time_parts = end_time_str.split(':')
+                                        if len(time_parts) >= 2:
+                                            hour = int(time_parts[0])
+                                            minute = int(time_parts[1])
+                                            eind_behandel_tijd = datetime.combine(patient_date, datetime.min.time().replace(hour=hour, minute=minute))
+                                except (ValueError, TypeError):
+                                    pass
+                            
+                            # Gebruik default tijden als parsing faalt
+                            if ophaal_tijd is None:
+                                ophaal_tijd = datetime.combine(patient_date, datetime.min.time().replace(hour=8, minute=0))
+                            
+                            if eind_behandel_tijd is None:
+                                eind_behandel_tijd = datetime.combine(patient_date, datetime.min.time().replace(hour=17, minute=0))
+                            
+                            # Bepaal adresgegevens
+                            straat = ""
+                            postcode = ""
+                            plaats = ""
+                            
+                            if 'adres' in mappings and len(csv_row) > mappings['adres']:
+                                straat = csv_row[mappings['adres']]
+                            if 'postcode' in mappings and len(csv_row) > mappings['postcode']:
+                                postcode = csv_row[mappings['postcode']]
+                            if 'plaats' in mappings and len(csv_row) > mappings['plaats']:
+                                plaats = csv_row[mappings['plaats']]
+                            
+                            # Bepaal naam
+                            achternaam = ""
+                            voornaam = ""
+                            
+                            if 'achternaam' in mappings and len(csv_row) > mappings['achternaam']:
+                                achternaam = csv_row[mappings['achternaam']]
+                            if 'voornaam' in mappings and len(csv_row) > mappings['voornaam']:
+                                voornaam = csv_row[mappings['voornaam']]
+                            
+                            # Maak volledige naam
+                            if voornaam and achternaam:
+                                naam = f"{voornaam} {achternaam}"
+                            elif achternaam:
+                                naam = achternaam
+                            elif voornaam:
+                                naam = voornaam
+                            else:
+                                naam = patient_name
+                            
+                            # Bepaal coördinaten
+                            latitude = None
+                            longitude = None
+                            
+                            if isinstance(patient_data, dict):
+                                latitude = patient_data.get('latitude')
+                                longitude = patient_data.get('longitude')
+                            
+                            # Maak of update patiënt
+                            patient, created = Patient.objects.get_or_create(
+                                naam=naam,
+                                ophaal_tijd__date=patient_date,
+                                defaults={
+                                    'straat': straat,
+                                    'postcode': postcode,
+                                    'plaats': plaats,
+                                    'ophaal_tijd': ophaal_tijd,
+                                    'eind_behandel_tijd': eind_behandel_tijd,
+                                    'bestemming': 'Revalidatiecentrum',  # Default bestemming
+                                    'toegewezen_voertuig': vehicle,
+                                    'status': 'gepland',
+                                    'latitude': latitude,
+                                    'longitude': longitude,
+                                }
+                            )
+                            
+                            if not created:
+                                # Update bestaande patiënt
+                                patient.toegewezen_voertuig = vehicle
+                                patient.status = 'gepland'
+                                if latitude and longitude:
+                                    patient.latitude = latitude
+                                    patient.longitude = longitude
+                                patient.save()
+                            
+                            saved_patients.append(patient)
+                            logger.info(f"✅ Patiënt opgeslagen: {patient.naam} -> {vehicle}")
+                            
+                        except Exception as e:
+                            logger.error(f"❌ Fout bij opslaan patiënt {patient_id}: {e}")
+        
+        logger.info(f"💾 {len(saved_patients)} patiënten opgeslagen in database")
+        
+        request.session['google_maps_routes'] = {
+            'optimized_routes': session_routes,
+            'statistics': {
+                'total_distance': total_distance,
+                'total_time': total_time,
+                'total_cost': total_cost,
+                'total_vehicles': total_vehicles,
+                'timeslots_processed': len(optimized_routes)
+            },
+            'timestamp': timezone.now().isoformat()
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Routes geoptimaliseerd! {total_vehicles} voertuigen, {total_distance:.1f} km, €{total_cost:.2f}',
+            'statistics': {
+                'total_distance': total_distance,
+                'total_time': total_time,
+                'total_cost': total_cost,
+                'total_vehicles': total_vehicles,
+                'timeslots_processed': len(optimized_routes)
+            },
+            'routes_count': len(optimized_routes)
+        })
+        
+    except Exception as e:
+        logger.error(f"Fout bij Google Maps route optimalisatie: {e}")
+        return JsonResponse({
+            'error': f'Fout bij route optimalisatie: {str(e)}',
+            'fallback_available': True
+        }, status=500)
+
+
+def api_wizard_geocode_patients(request):
+    """
+    API endpoint voor geocoding van patiënt adressen tijdens preview
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Alleen POST requests toegestaan'}, status=405)
+    
+    try:
+        # Haal upload data op uit session
+        upload_data = request.session.get('wizard_upload_data', {})
+        if not upload_data:
+            return JsonResponse({'error': 'Geen upload data gevonden'}, status=400)
+        
+        csv_data = upload_data.get('csv_data', [])
+        detection_result = upload_data.get('detection_result', {})
+        mappings = detection_result.get('mappings', {})
+        
+        if not csv_data:
+            return JsonResponse({'error': 'Geen CSV data gevonden'}, status=400)
+        
+        # Import Google Maps service
+        from .services.google_maps import google_maps_service
+        
+        # Check of Google Maps API beschikbaar is
+        use_fallback = not google_maps_service.is_enabled()
+        
+        if not use_fallback:
+            # Test API toegang
+            test_response = google_maps_service._make_api_call('geocode/json', {
+                'address': 'Bonn, Germany',
+                'key': google_maps_service.api_key
+            })
+            
+            if not test_response or test_response.get('status') == 'REQUEST_DENIED':
+                use_fallback = True
+                logger.warning("Google Maps API test gefaald, gebruik fallback geocoding")
+        
+        if use_fallback:
+            logger.info("🔄 Gebruik fallback geocoding (Google Maps API niet beschikbaar)")
+        
+        logger.info("🚀 Start geocoding van patiënt adressen...")
+        
+        # Geocode patiënten
+        geocoded_patients = []
+        success_count = 0
+        error_count = 0
+        
+        logger.info(f"🔍 Start geocoding voor {len(csv_data)} rijen")
+        logger.info(f"📋 Mappings: {mappings}")
+        
+        for i, row in enumerate(csv_data):
+            if not row.get('data'):
+                logger.warning(f"Rij {i}: Geen data gevonden")
+                continue
+                
+            data = row['data']
+            patient_info = {}
+            
+            logger.info(f"🔍 Verwerk rij {i}: {data}")
+            
+            # Extraheer patiënt informatie
+            if 'patient_id' in mappings and len(data) > mappings['patient_id']:
+                patient_info['patient_id'] = data[mappings['patient_id']]
+                logger.info(f"  Patient ID: {patient_info['patient_id']}")
+            
+            if 'achternaam' in mappings and len(data) > mappings['achternaam']:
+                patient_info['achternaam'] = data[mappings['achternaam']]
+                logger.info(f"  Achternaam: {patient_info['achternaam']}")
+            
+            if 'voornaam' in mappings and len(data) > mappings['voornaam']:
+                patient_info['voornaam'] = data[mappings['voornaam']]
+                logger.info(f"  Voornaam: {patient_info['voornaam']}")
+            
+            # Extraheer adresgegevens
+            if 'adres' in mappings and len(data) > mappings['adres']:
+                patient_info['adres'] = data[mappings['adres']]
+                logger.info(f"  Adres: {patient_info['adres']}")
+            
+            if 'plaats' in mappings and len(data) > mappings['plaats']:
+                patient_info['plaats'] = data[mappings['plaats']]
+                logger.info(f"  Plaats: {patient_info['plaats']}")
+            
+            if 'postcode' in mappings and len(data) > mappings['postcode']:
+                patient_info['postcode'] = data[mappings['postcode']]
+                logger.info(f"  Postcode: {patient_info['postcode']}")
+            
+            # Bouw adres op voor geocoding
+            address_parts = []
+            if patient_info.get('adres'):
+                address_parts.append(patient_info['adres'])
+            if patient_info.get('postcode'):
+                address_parts.append(patient_info['postcode'])
+            if patient_info.get('plaats'):
+                address_parts.append(patient_info['plaats'])
+            
+            logger.info(f"  Adres delen: {address_parts}")
+            
+            if address_parts:
+                full_address = ', '.join(address_parts) + ', Germany'
+                logger.info(f"  Volledig adres: {full_address}")
+                
+                if use_fallback:
+                    # Gebruik fallback coördinaten
+                    import random
+                    base_lat = 50.7467  # Bonn centrum
+                    base_lng = 7.1516
+                    
+                    # Voeg wat variatie toe per patiënt
+                    lat_variation = (i * 0.01) + (random.random() * 0.005)
+                    lng_variation = (i * 0.01) + (random.random() * 0.005)
+                    
+                    patient_info['latitude'] = base_lat + lat_variation
+                    patient_info['longitude'] = base_lng + lng_variation
+                    patient_info['geocoded'] = True
+                    patient_info['fallback_used'] = True
+                    success_count += 1
+                    logger.info(f"✅ Fallback geocoded: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
+                else:
+                    # Gebruik Google Maps API
+                    coords = google_maps_service.geocode_address(full_address)
+                if coords:
+                    patient_info['latitude'] = coords[0]
+                    patient_info['longitude'] = coords[1]
+                    patient_info['geocoded'] = True
+                    patient_info['fallback_used'] = False
+                    success_count += 1
+                    logger.info(f"✅ Google Maps geocoded: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
+                else:
+                    patient_info['geocoded'] = False
+                    error_count += 1
+                    logger.warning(f"❌ Geocoding failed: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
+            else:
+                patient_info['geocoded'] = False
+                error_count += 1
+                logger.warning(f"❌ Geen adresgegevens: {patient_info.get('achternaam', 'Onbekend')}")
+                logger.warning(f"  Beschikbare velden: {list(patient_info.keys())}")
+            
+            geocoded_patients.append(patient_info)
+        
+        # Sla geocoded data op in session
+        upload_data['geocoded_patients'] = geocoded_patients
+        request.session['wizard_upload_data'] = upload_data
+        
+        logger.info(f"🎯 Geocoding voltooid: {success_count} succesvol, {error_count} gefaald")
+        
+        response_data = {
+            'success': True,
+            'statistics': {
+                'total_patients': len(geocoded_patients),
+                'success_count': success_count,
+                'error_count': error_count,
+                'success_rate': round((success_count / len(geocoded_patients)) * 100, 1) if geocoded_patients else 0
+            }
+        }
+        
+        if use_fallback:
+            response_data['message'] = f'Fallback geocoding voltooid! {success_count} adressen verwerkt, {error_count} gefaald'
+            response_data['fallback_used'] = True
+        else:
+            response_data['message'] = f'Google Maps geocoding voltooid! {success_count} adressen gevonden, {error_count} gefaald'
+            response_data['fallback_used'] = False
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"Fout bij geocoding: {e}")
+        return JsonResponse({
+            'error': f'Fout bij geocoding: {str(e)}'
+        }, status=500)
+
+
+def api_wizard_real_time_update(request):
+    """
+    API endpoint voor real-time route updates bij wijzigingen
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Alleen POST requests toegestaan'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        patient_id = data.get('patient_id')
+        new_vehicle_id = data.get('new_vehicle_id')
+        timeslot_id = data.get('timeslot_id')
+        
+        if not all([patient_id, new_vehicle_id, timeslot_id]):
+            return JsonResponse({'error': 'Ontbrekende parameters'}, status=400)
+        
+        # Haal data op
+        from .models import Vehicle, Patient
+        try:
+            vehicle = Vehicle.objects.get(id=new_vehicle_id)
+            patient = Patient.objects.get(id=patient_id)
+        except (Vehicle.DoesNotExist, Patient.DoesNotExist):
+            return JsonResponse({'error': 'Voertuig of patiënt niet gevonden'}, status=404)
+        
+        # Import Google Maps service
+        from .services.google_maps import google_maps_service
+        
+        if not google_maps_service.is_enabled():
+            return JsonResponse({
+                'error': 'Google Maps API is niet beschikbaar',
+                'fallback_available': True
+            }, status=400)
+        
+        # Bereken nieuwe route voor dit voertuig
+        # Dit is een vereenvoudigde versie - in productie zou je de volledige route herberekenen
+        route_update = {
+            'vehicle_id': vehicle.id,
+            'vehicle_name': vehicle.kenteken,
+            'patient_id': patient.id,
+            'patient_name': patient.naam,
+            'estimated_distance': 15.5,  # Placeholder - zou Google Maps gebruiken
+            'estimated_time': 25,  # Placeholder
+            'estimated_cost': 15.5 * float(vehicle.km_kosten_per_km)
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'route_update': route_update,
+            'message': f'Route bijgewerkt voor {patient.voornaam} {patient.achternaam}'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Ongeldige JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Fout bij real-time route update: {e}")
+        return JsonResponse({
+            'error': f'Fout bij route update: {str(e)}',
+            'fallback_available': True
+        }, status=500)

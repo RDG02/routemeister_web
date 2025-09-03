@@ -9,6 +9,7 @@ from .models_extended import CSVImportLog, PlanningSession, PlanningAction, Noti
 from .widgets import ColorPickerWidget
 from .models import CSVParserConfig
 from .models import PlanningConstraint
+from .models import GoogleMapsConfig, GoogleMapsAPILog
 
 # Register your models here.
 
@@ -330,3 +331,82 @@ class PlanningConstraintAdmin(admin.ModelAdmin):
             'description': 'JSON parameters voor deze constraint'
         }),
     )
+
+@admin.register(GoogleMapsConfig)
+class GoogleMapsConfigAdmin(admin.ModelAdmin):
+    """Admin interface voor Google Maps configuratie"""
+    
+    list_display = ['enabled', 'vehicle_optimization', 'distance_weight', 'time_weight', 'daily_api_limit', 'updated_at']
+    list_filter = ['enabled', 'vehicle_optimization', 'real_time_updates']
+    
+    fieldsets = (
+        ('API Configuratie', {
+            'fields': ('api_key', 'enabled')
+        }),
+        ('Optimalisatie Gewichten', {
+            'fields': ('distance_weight', 'time_weight', 'vehicle_utilization_weight'),
+            'description': 'Gewichten voor route optimalisatie (totaal moet 100% zijn)'
+        }),
+        ('Voertuig Optimalisatie', {
+            'fields': ('vehicle_optimization',)
+        }),
+        ('API Limieten', {
+            'fields': ('daily_api_limit', 'monthly_api_limit'),
+            'description': 'Dagelijkse en maandelijkse API call limieten'
+        }),
+        ('UI Instellingen', {
+            'fields': ('show_loading_timer', 'real_time_updates')
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        # Valideer dat gewichten optellen tot 100%
+        total_weight = obj.distance_weight + obj.time_weight + obj.vehicle_utilization_weight
+        if total_weight != 100:
+            self.message_user(
+                request, 
+                f'Waarschuwing: Gewichten tellen op tot {total_weight}% in plaats van 100%', 
+                level='WARNING'
+            )
+        
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(GoogleMapsAPILog)
+class GoogleMapsAPILogAdmin(admin.ModelAdmin):
+    """Admin interface voor Google Maps API logs"""
+    
+    list_display = ['api_type', 'calls_made', 'estimated_cost', 'date']
+    list_filter = ['api_type', 'date']
+    readonly_fields = ['api_type', 'calls_made', 'estimated_cost', 'date', 'created_at']
+    
+    fieldsets = (
+        ('API Call Informatie', {
+            'fields': ('api_type', 'calls_made', 'estimated_cost')
+        }),
+        ('Periode', {
+            'fields': ('date', 'created_at')
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        # API logs worden automatisch aangemaakt, niet handmatig
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        # API logs zijn read-only
+        return False
+    
+    actions = ['reset_daily_logs', 'export_api_stats']
+    
+    def reset_daily_logs(self, request, queryset):
+        """Reset dagelijkse API logs"""
+        count = queryset.delete()[0]
+        self.message_user(request, f'{count} API logs gereset')
+    reset_daily_logs.short_description = "Reset geselecteerde API logs"
+    
+    def export_api_stats(self, request, queryset):
+        """Export API statistieken"""
+        # Implementeer export functionaliteit
+        self.message_user(request, 'API statistieken export functionaliteit komt binnenkort')
+    export_api_stats.short_description = "Export API statistieken"

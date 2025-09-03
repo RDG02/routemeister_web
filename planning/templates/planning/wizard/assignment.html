@@ -21,10 +21,16 @@
 
     <!-- Assignment Section -->
     <div class="assignment-section">
-        <h1>🤖 Toewijzing & Route Generatie</h1>
+        <h1>🚗 Voertuig & Route Optimalisatie</h1>
         <p class="section-description">
-            Auto-toewijzing van patiënten aan voertuigen en tijdblokken, met mogelijkheid voor handmatige correcties.
+            Optimaliseer patiënten over voertuigen en genereer de beste routes met Google Maps.
         </p>
+        
+        <!-- Google Maps Status -->
+        <div id="googleMapsStatus" class="status-indicator">
+            <span class="status-icon">🔍</span>
+            <span class="status-text">Google Maps API status wordt gecontroleerd...</span>
+        </div>
 
         <!-- Auto Assignment Results -->
         <div class="assignment-results" id="assignmentResults" style="display: none;">
@@ -136,7 +142,49 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Load constraints on page load
     loadConstraints();
+    checkGoogleMapsStatus();
 });
+
+function checkGoogleMapsStatus() {
+    const statusElement = document.getElementById('googleMapsStatus');
+    if (!statusElement) return;
+    
+    // Check if Google Maps is enabled via API call
+    fetch('{% url "api_wizard_google_maps_routes" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ check_status: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.fallback_available) {
+            statusElement.innerHTML = `
+                <span class="status-icon">✅</span>
+                <span class="status-text">Google Maps API beschikbaar voor route optimalisatie</span>
+            `;
+            statusElement.style.background = '#d4edda';
+            statusElement.style.borderColor = '#c3e6cb';
+        } else {
+            statusElement.innerHTML = `
+                <span class="status-icon">⚠️</span>
+                <span class="status-text">Google Maps API niet beschikbaar - gebruik fallback optimalisatie</span>
+            `;
+            statusElement.style.background = '#fff3cd';
+            statusElement.style.borderColor = '#ffeaa7';
+        }
+    })
+    .catch(error => {
+        statusElement.innerHTML = `
+            <span class="status-icon">❌</span>
+            <span class="status-text">Kan Google Maps status niet controleren</span>
+        `;
+        statusElement.style.background = '#f8d7da';
+        statusElement.style.borderColor = '#f5c6cb';
+    });
+}
 
 function loadConstraints() {
     fetch('{% url "api_wizard_constraints" %}')
@@ -166,16 +214,28 @@ function displayConstraints(constraints) {
 }
 
 function startAutoAssignment() {
-    // Show progress
+    // Show progress with loading timer
     const progressCard = document.querySelector('.progress-card');
     progressCard.innerHTML = `
         <div class="progress-icon">⏳</div>
         <div class="progress-content">
-            <h3>Tijdblok-toewijzing Uitvoeren</h3>
+            <h3>🔄 Route optimalisatie...</h3>
             <p>Patiënten worden automatisch toegewezen aan tijdblokken op basis van hun start/eind tijden...</p>
-            <div class="loading-spinner">🔄</div>
+            <div class="loading-timer">
+                <div class="loading-spinner">🔄</div>
+                <div class="timer-text">
+                    <span>⏱️ Geschatte tijd: </span>
+                    <span id="loadingTimer">00:00</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
         </div>
     `;
+    
+    // Start loading timer
+    startLoadingTimer();
     
     // Call API voor tijdblok-toewijzing
     fetch('{% url "api_wizard_auto_assign" %}', {
@@ -192,6 +252,7 @@ function startAutoAssignment() {
         return response.json();
     })
     .then(data => {
+        stopLoadingTimer();
         console.log('API Response:', data);
         console.log('Timeslot names:', data.data?.timeslot_names);
         if (data.success) {
@@ -201,9 +262,81 @@ function startAutoAssignment() {
         }
     })
     .catch(error => {
+        stopLoadingTimer();
         console.error('Fetch error:', error);
         showAssignmentError('Fout bij uitvoeren tijdblok-toewijzing: ' + error.message);
     });
+}
+
+function startGoogleMapsOptimization() {
+    // Show progress with loading timer
+    const routeBtn = document.querySelector('#routeGeneration .btn');
+    routeBtn.innerHTML = `
+        <span class="btn-icon">🔄</span>
+        <span>Route optimalisatie...</span>
+        <div class="loading-timer">
+            <span>⏱️ Geschatte tijd: </span>
+            <span id="loadingTimer">00:00</span>
+        </div>
+    `;
+    routeBtn.disabled = true;
+    
+    // Start loading timer
+    startLoadingTimer();
+    
+    // Make API call to Google Maps optimization
+    fetch('{% url "api_wizard_google_maps_routes" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        stopLoadingTimer();
+        
+        if (data.success) {
+            showGoogleMapsResults(data);
+        } else {
+            showGoogleMapsError(data.error || 'Onbekende fout');
+        }
+    })
+    .catch(error => {
+        stopLoadingTimer();
+        console.error('Google Maps error:', error);
+        showGoogleMapsError('Fout bij Google Maps optimalisatie: ' + error.message);
+    });
+}
+
+function startLoadingTimer() {
+    const timerElement = document.getElementById('loadingTimer');
+    if (!timerElement) return;
+    
+    let seconds = 0;
+    const timer = setInterval(() => {
+        seconds++;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        
+        // Update progress bar (simulate progress)
+        const progressFill = document.getElementById('progressFill');
+        if (progressFill) {
+            const progress = Math.min((seconds / 30) * 100, 100); // 30 seconds = 100%
+            progressFill.style.width = `${progress}%`;
+        }
+    }, 1000);
+    
+    // Store timer ID for stopping
+    window.loadingTimerId = timer;
+}
+
+function stopLoadingTimer() {
+    if (window.loadingTimerId) {
+        clearInterval(window.loadingTimerId);
+        window.loadingTimerId = null;
+    }
 }
 
 function showAssignmentResults(result) {
@@ -359,20 +492,134 @@ function showTimeslotAssignments(timeslotAssignments, timeslotNames) {
 }
 
 function generateRoutes() {
-    // Simulate route generation
+    // Start Google Maps route optimization
     const routeBtn = document.querySelector('#routeGeneration .btn');
-    routeBtn.innerHTML = '<span class="btn-icon">⏳</span> Routes Genereren...';
+    routeBtn.innerHTML = `
+        <span class="btn-icon">🔄</span>
+        <span>Route optimalisatie...</span>
+        <div class="loading-timer">
+            <span>⏱️ Geschatte tijd: </span>
+            <span id="loadingTimer">00:00</span>
+        </div>
+    `;
     routeBtn.disabled = true;
     
-    setTimeout(() => {
-        routeBtn.innerHTML = '<span class="btn-icon">✅</span> Routes Voltooid!';
-        routeBtn.style.background = '#28a745';
-    }, 3000);
+    // Start loading timer
+    startLoadingTimer();
+    
+    // Make API call to Google Maps optimization
+    fetch('{% url "api_wizard_google_maps_routes" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        stopLoadingTimer();
+        
+        if (data.success) {
+            showGoogleMapsResults(data);
+        } else {
+            showGoogleMapsError(data.error || 'Onbekende fout');
+        }
+    })
+    .catch(error => {
+        stopLoadingTimer();
+        console.error('Google Maps error:', error);
+        showGoogleMapsError('Fout bij Google Maps optimalisatie: ' + error.message);
+    });
+}
+
+function showGoogleMapsResults(data) {
+    const routeBtn = document.querySelector('#routeGeneration .btn');
+    routeBtn.innerHTML = '<span class="btn-icon">✅</span> Routes Voltooid!';
+    routeBtn.style.background = '#28a745';
+    routeBtn.disabled = false;
+    
+    // Show results summary
+    const resultsDiv = document.createElement('div');
+    resultsDiv.className = 'google-maps-results';
+    resultsDiv.innerHTML = `
+        <div class="results-summary">
+            <h4>🎯 Route Optimalisatie Resultaten</h4>
+            <div class="result-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Totaal Afstand:</span>
+                    <span class="stat-value">${data.statistics.total_distance.toFixed(1)} km</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Totaal Tijd:</span>
+                    <span class="stat-value">${Math.round(data.statistics.total_time)} min</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Totaal Kosten:</span>
+                    <span class="stat-value">€${data.statistics.total_cost.toFixed(2)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Voertuigen Gebruikt:</span>
+                    <span class="stat-value">${data.statistics.total_vehicles}</span>
+                </div>
+            </div>
+            <div class="success-message">
+                <p>✅ ${data.message}</p>
+                <div class="action-buttons" style="margin-top: 15px;">
+                    <button class="btn btn-primary" onclick="viewPlanning()">
+                        <span class="btn-icon">🗺️</span>
+                        Bekijk Planning
+                    </button>
+                    <button class="btn btn-secondary" onclick="goBack()">
+                        <span class="btn-icon">⬅️</span>
+                        Terug
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert results after the route generation card
+    const routeCard = document.querySelector('#routeGeneration');
+    routeCard.parentNode.insertBefore(resultsDiv, routeCard.nextSibling);
+    
+    // Enable continue button
+    const continueBtn = document.querySelector('.btn-continue');
+    if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.style.opacity = '1';
+    }
+}
+
+function showGoogleMapsError(error) {
+    const routeBtn = document.querySelector('#routeGeneration .btn');
+    routeBtn.innerHTML = '<span class="btn-icon">❌</span> Fout bij Route Optimalisatie';
+    routeBtn.style.background = '#dc3545';
+    routeBtn.disabled = false;
+    
+    // Show error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'google-maps-error';
+    errorDiv.innerHTML = `
+        <div class="error-summary">
+            <h4>❌ Route Optimalisatie Fout</h4>
+            <p>${error}</p>
+            <button class="btn btn-secondary" onclick="generateRoutes()">Opnieuw Proberen</button>
+        </div>
+    `;
+    
+    // Insert error after the route generation card
+    const routeCard = document.querySelector('#routeGeneration');
+    routeCard.parentNode.insertBefore(errorDiv, routeCard.nextSibling);
 }
 
 function saveAndContinue() {
     // Save planning and redirect to results
     window.location.href = '{% url "planning_wizard_routes" %}';
+}
+
+function viewPlanning() {
+    // Redirect to planning page to view the generated routes
+    window.location.href = '/planning/new-ui/';
 }
 
 function goBack() {
@@ -681,6 +928,125 @@ function switchView(viewType) {
     font-size: 2rem;
     animation: spin 1s linear infinite;
     margin: 1rem 0;
+}
+
+.loading-timer {
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.timer-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0.5rem 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #F8CD46, #f39c12);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.status-icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.status-text {
+    font-weight: 500;
+    color: #495057;
+}
+
+.google-maps-results {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+}
+
+.results-summary h4 {
+    color: #28a745;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.result-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.stat-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.stat-value {
+    font-weight: 700;
+    color: #28a745;
+    font-size: 1.1rem;
+}
+
+.success-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    color: #155724;
+}
+
+.google-maps-error {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 12px;
+}
+
+.error-summary h4 {
+    color: #dc3545;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.error-summary p {
+    color: #721c24;
+    margin-bottom: 1rem;
 }
 
 @keyframes spin {

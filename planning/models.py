@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from datetime import time
 import requests
 import json
+from django.utils import timezone
+from datetime import timedelta
 
 # Create your models here.
 
@@ -508,3 +510,169 @@ class PlanningConstraint(models.Model):
             return f"{self.penalty // 1000}K"
         else:
             return str(self.penalty)
+
+
+class GoogleMapsConfig(models.Model):
+    """
+    Configuratie voor Google Maps API en optimalisatie instellingen
+    """
+    # API Configuratie
+    api_key = models.CharField(max_length=200, blank=True, help_text="Google Maps API Key")
+    enabled = models.BooleanField(default=False, help_text="Google Maps API inschakelen")
+    
+    # Optimalisatie Gewichten
+    distance_weight = models.IntegerField(default=70, help_text="Gewicht voor afstand optimalisatie (0-100)")
+    time_weight = models.IntegerField(default=30, help_text="Gewicht voor tijd optimalisatie (0-100)")
+    vehicle_utilization_weight = models.IntegerField(default=50, help_text="Gewicht voor voertuig bezetting (0-100)")
+    
+    # Voertuig Optimalisatie
+    VEHICLE_OPTIMIZATION_CHOICES = [
+        ('max_capacity', 'Maximale bezetting'),
+        ('balanced', 'Evenwichtige verdeling'),
+        ('min_vehicles', 'Minimaal aantal voertuigen'),
+        ('hybrid', 'Hybride aanpak'),
+    ]
+    vehicle_optimization = models.CharField(
+        max_length=20, 
+        choices=VEHICLE_OPTIMIZATION_CHOICES, 
+        default='hybrid',
+        help_text="Strategie voor voertuig optimalisatie"
+    )
+    
+    # API Limieten
+    daily_api_limit = models.IntegerField(default=1000, help_text="Dagelijks API call limiet")
+    monthly_api_limit = models.IntegerField(default=25000, help_text="Maandelijks API call limiet")
+    
+    # UI Instellingen
+    show_loading_timer = models.BooleanField(default=True, help_text="Toon loading timer tijdens route berekening")
+    real_time_updates = models.BooleanField(default=True, help_text="Real-time updates bij wijzigingen")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Google Maps Configuratie"
+        verbose_name_plural = "Google Maps Configuraties"
+    
+    def __str__(self):
+        return f"Google Maps Config ({'Actief' if self.enabled else 'Inactief'})"
+    
+    def get_optimization_weights(self):
+        """Retourneer optimalisatie gewichten als dictionary"""
+        return {
+            'distance': self.distance_weight / 100,
+            'time': self.time_weight / 100,
+            'vehicle_utilization': self.vehicle_utilization_weight / 100
+        }
+    
+    @classmethod
+    def get_active_config(cls):
+        """Haal actieve configuratie op of maak standaard configuratie"""
+        config = cls.objects.first()
+        if not config:
+            config = cls.objects.create()
+        return config
+
+
+class GoogleMapsAPILog(models.Model):
+    """
+    Log voor Google Maps API calls en kosten
+    """
+    # API Call Informatie
+    api_type = models.CharField(max_length=50, choices=[
+        ('distance_matrix', 'Distance Matrix'),
+        ('directions', 'Directions'),
+        ('geocoding', 'Geocoding'),
+    ])
+    calls_made = models.IntegerField(default=0)
+    estimated_cost = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    
+    # Periode
+    date = models.DateField(auto_now_add=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Google Maps API Log"
+        verbose_name_plural = "Google Maps API Logs"
+        unique_together = ['api_type', 'date']
+    
+    def __str__(self):
+        return f"{self.api_type} - {self.date} ({self.calls_made} calls)"
+    
+    @classmethod
+    def log_api_call(cls, api_type, calls=1):
+        """Log een API call"""
+        log, created = cls.objects.get_or_create(
+            api_type=api_type,
+            date=timezone.now().date(),
+            defaults={'calls_made': 0, 'estimated_cost': 0}
+        )
+        
+        # Update calls
+        log.calls_made += calls
+        
+        # Bereken geschatte kosten (Google Maps pricing)
+        cost_per_call = {
+            'distance_matrix': 0.005,  # $5 per 1000 calls
+            'directions': 0.005,       # $5 per 1000 calls
+            'geocoding': 0.005,        # $5 per 1000 calls
+        }
+        
+        log.estimated_cost = log.calls_made * cost_per_call.get(api_type, 0.005)
+        log.save()
+        
+        return log
+    
+    @classmethod
+    def get_daily_stats(cls, date=None):
+        """Haal dagelijkse statistieken op"""
+        if date is None:
+            date = timezone.now().date()
+        
+        logs = cls.objects.filter(date=date)
+        total_calls = sum(log.calls_made for log in logs)
+        total_cost = sum(log.estimated_cost for log in logs)
+        
+        return {
+            'date': date,
+            'total_calls': total_calls,
+            'total_cost': total_cost,
+            'breakdown': {log.api_type: log.calls_made for log in logs}
+        }
+    
+    @classmethod
+    def get_weekly_stats(cls, weeks_back=0):
+        """Haal wekelijkse statistieken op"""
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=7 * weeks_back + 7)
+        
+        logs = cls.objects.filter(date__range=[start_date, end_date])
+        total_calls = sum(log.calls_made for log in logs)
+        total_cost = sum(log.estimated_cost for log in logs)
+        
+        return {
+            'period': f"{start_date} - {end_date}",
+            'total_calls': total_calls,
+            'total_cost': total_cost,
+            'daily_average': total_calls / 7 if total_calls > 0 else 0
+        }
+    
+    @classmethod
+    def get_monthly_stats(cls, months_back=0):
+        """Haal maandelijkse statistieken op"""
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30 * months_back + 30)
+        
+        logs = cls.objects.filter(date__range=[start_date, end_date])
+        total_calls = sum(log.calls_made for log in logs)
+        total_cost = sum(log.estimated_cost for log in logs)
+        
+        return {
+            'period': f"{start_date} - {end_date}",
+            'total_calls': total_calls,
+            'total_cost': total_cost,
+            'daily_average': total_calls / 30 if total_calls > 0 else 0
+        }

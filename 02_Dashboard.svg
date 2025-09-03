@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect id="Topbar" x="0" y="0" width="1440" height="72" rx="0" fill="#FFD235" stroke="#E5E7EB" stroke-width="0"/>
+<text x="88" y="44" font-size="18" font-weight="700" fill="#1F2937" text-anchor="start" font-family="Inter, Arial">ROUTMEISTER</text>
+<circle id="LogoPin" cx="40" cy="36" r="12" fill="#1F2937"/>
+<path d="M40 26 L34 36 L46 36 Z" stroke="#1F2937" stroke-width="0" fill="#1F2937"/>
+<rect id="Icon-Notifications" x="1240" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-User" x="1288" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-Export" x="1336" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-NewPlanning" x="1384" y="20" width="36" height="32" rx="8" fill="#1DAA6E" stroke="#0F766E" stroke-width="1"/>
+<text x="1402" y="42" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="Inter, Arial">+</text>
+<text x="40" y="112" font-size="22" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">Dashboard</text>
+<rect x="40" y="140" width="320" height="120" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="60" y="176" font-size="14" font-weight="normal" fill="#6B7280" text-anchor="start" font-family="Inter, Arial">Actieve routes</text>
+<text x="60" y="220" font-size="28" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">12</text>
+<rect x="380" y="140" width="320" height="120" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="400" y="176" font-size="14" font-weight="normal" fill="#6B7280" text-anchor="start" font-family="Inter, Arial">Te laat</text>
+<text x="400" y="220" font-size="28" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">3</text>
+<rect x="720" y="140" width="320" height="120" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="740" y="176" font-size="14" font-weight="normal" fill="#6B7280" text-anchor="start" font-family="Inter, Arial">Gem. ETA</text>
+<text x="740" y="220" font-size="28" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">+04 min</text>
+<rect x="1060" y="140" width="320" height="120" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1080" y="176" font-size="14" font-weight="normal" fill="#6B7280" text-anchor="start" font-family="Inter, Arial">Bezetting</text>
+<text x="1080" y="220" font-size="28" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">78%</text>
+<text x="40" y="300" font-size="14" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Aug 11, 2025</text>
+<rect id="Timeline-Track" x="40" y="320" width="1360" height="40" rx="8" fill="#111827" stroke="#111827" stroke-width="0"/>
+<rect x="40" y="320" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="160" y="346" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">08:00</text>
+<rect x="312" y="320" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="432" y="346" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">10:00</text>
+<rect x="584" y="320" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="704" y="346" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">12:00</text>
+<rect x="856" y="320" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="976" y="346" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">14:00</text>
+<rect x="1128" y="320" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="1248" y="346" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">16:00</text>
+<rect id="Timeline-Cursor" x="280" y="314" width="4" height="52" rx="2" fill="#C9A42B" stroke="#000000" stroke-width="0"/>
+<rect id="Map-Area" x="40" y="380" width="920" height="440" rx="16" fill="#EEF2FF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="64" y="416" font-size="14" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Kaart (klikbare pins, route per voertuigkleur)</text>
+<path d="M800 760 C 840 700, 920 640, 890 560 C 860 500, 980 460, 1040 420" stroke="#e74c3c" stroke-width="4" fill="none"/>
+<path d="M820 220 C 900 260, 980 320, 1060 360 C 1120 380, 1200 420, 1260 460" stroke="#f39c12" stroke-width="4" fill="none"/>
+<path d="M780 520 C 860 520, 920 480, 980 540 C 1040 600, 1160 620, 1330 600" stroke="#27ae60" stroke-width="4" fill="none"/>
+<path d="M980 260 C 1040 300, 1100 340, 1160 380 C 1180 440, 1220 500, 1280 560" stroke="#8e44ad" stroke-width="4" fill="none"/>
+<path d="M820 640 C 900 600, 980 560, 1060 520 C 1160 500, 1260 520, 1360 560" stroke="#2980b9" stroke-width="4" fill="none"/>
+<circle cx="617" cy="448" r="7" fill="#e74c3c"/>
+<path d="M617 448 L617 464" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="311" cy="511" r="7" fill="#e74c3c"/>
+<path d="M311 511 L311 527" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="698" cy="656" r="7" fill="#e74c3c"/>
+<path d="M698 656 L698 672" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="829" cy="467" r="7" fill="#e74c3c"/>
+<path d="M829 467 L829 483" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="434" cy="449" r="7" fill="#f39c12"/>
+<path d="M434 449 L434 465" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="263" cy="601" r="7" fill="#f39c12"/>
+<path d="M263 601 L263 617" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="102" cy="503" r="7" fill="#f39c12"/>
+<path d="M102 503 L102 519" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="625" cy="614" r="7" fill="#f39c12"/>
+<path d="M625 614 L625 630" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="265" cy="628" r="7" fill="#27ae60"/>
+<path d="M265 628 L265 644" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="759" cy="442" r="7" fill="#27ae60"/>
+<path d="M759 442 L759 458" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="756" cy="663" r="7" fill="#27ae60"/>
+<path d="M756 663 L756 679" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="365" cy="489" r="7" fill="#27ae60"/>
+<path d="M365 489 L365 505" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="884" cy="547" r="7" fill="#8e44ad"/>
+<path d="M884 547 L884 563" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="157" cy="470" r="7" fill="#8e44ad"/>
+<path d="M157 470 L157 486" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="791" cy="633" r="7" fill="#8e44ad"/>
+<path d="M791 633 L791 649" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="757" cy="673" r="7" fill="#8e44ad"/>
+<path d="M757 673 L757 689" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="530" cy="751" r="7" fill="#2980b9"/>
+<path d="M530 751 L530 767" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="397" cy="616" r="7" fill="#2980b9"/>
+<path d="M397 616 L397 632" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="776" cy="637" r="7" fill="#2980b9"/>
+<path d="M776 637 L776 653" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="803" cy="624" r="7" fill="#2980b9"/>
+<path d="M803 624 L803 640" stroke="#2980b9" stroke-width="2" fill="none"/>
+<rect x="888" y="400" width="52" height="24" rx="6" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<circle cx="902" cy="412" r="6" fill="#111827"/>
+<text x="920" y="416" font-size="12" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Home</text>
+<rect x="980" y="380" width="420" height="440" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1000" y="412" font-size="16" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">Aankomende stops</text>
+<rect x="1000" y="440" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="466" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 1 – V01</text>
+<rect x="1000" y="490" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="516" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 2 – V02</text>
+<rect x="1000" y="540" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="566" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 3 – V03</text>
+<rect x="1000" y="590" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="616" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 4 – V04</text>
+<rect x="1000" y="640" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="666" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 5 – V05</text>
+<rect x="1000" y="690" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="716" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 6 – V01</text>
+<rect x="1000" y="740" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="766" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 7 – V02</text>
+<rect x="1000" y="790" width="380" height="40" rx="8" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1012" y="816" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 8 – V03</text>
+</svg>

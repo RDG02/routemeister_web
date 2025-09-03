@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect id="Topbar" x="0" y="0" width="1440" height="72" rx="0" fill="#FFD235" stroke="#E5E7EB" stroke-width="0"/>
+<text x="88" y="44" font-size="18" font-weight="700" fill="#1F2937" text-anchor="start" font-family="Inter, Arial">ROUTMEISTER</text>
+<circle id="LogoPin" cx="40" cy="36" r="12" fill="#1F2937"/>
+<path d="M40 26 L34 36 L46 36 Z" stroke="#1F2937" stroke-width="0" fill="#1F2937"/>
+<rect id="Icon-Notifications" x="1240" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-User" x="1288" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-Export" x="1336" y="20" width="36" height="32" rx="8" fill="#FFF" stroke="#D1D5DB" stroke-width="1"/>
+<rect id="Icon-NewPlanning" x="1384" y="20" width="36" height="32" rx="8" fill="#1DAA6E" stroke="#0F766E" stroke-width="1"/>
+<text x="1402" y="42" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="Inter, Arial">+</text>
+<text x="40" y="100" font-size="14" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Aug 11, 2025</text>
+<rect id="Timeline-Track" x="40" y="120" width="1360" height="40" rx="8" fill="#111827" stroke="#111827" stroke-width="0"/>
+<rect x="40" y="120" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="160" y="146" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">08:00</text>
+<rect x="312" y="120" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="432" y="146" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">10:00</text>
+<rect x="584" y="120" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="704" y="146" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">12:00</text>
+<rect x="856" y="120" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="976" y="146" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">14:00</text>
+<rect x="1128" y="120" width="240" height="40" rx="8" fill="#374151" stroke="#111827" stroke-width="0"/>
+<text x="1248" y="146" font-size="14" font-weight="600" fill="#E5E7EB" text-anchor="middle" font-family="Inter, Arial">16:00</text>
+<rect id="Timeline-Cursor" x="280" y="114" width="4" height="52" rx="2" fill="#C9A42B" stroke="#000000" stroke-width="0"/>
+<rect id="Vehicle-Col-01" x="40" y="180" width="320" height="640" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<rect id="Vehicle-Badge-01" x="56" y="196" width="288" height="40" rx="10" fill="#e74c3c" stroke="#e74c3c" stroke-width="0"/>
+<text x="64" y="222" font-size="14" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">V01</text>
+<rect id="Patient-01-1" x="56" y="252" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="68" y="280" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 1</text>
+<rect id="Patient-01-2" x="56" y="304" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="68" y="332" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 2</text>
+<rect id="Patient-01-3" x="56" y="356" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="68" y="384" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 3</text>
+<rect id="Patient-01-4" x="56" y="408" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="68" y="436" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 4</text>
+<rect id="Patient-01-5" x="56" y="460" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="68" y="488" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 5</text>
+<rect id="Vehicle-Col-02" x="380" y="180" width="320" height="640" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<rect id="Vehicle-Badge-02" x="396" y="196" width="288" height="40" rx="10" fill="#f39c12" stroke="#f39c12" stroke-width="0"/>
+<text x="404" y="222" font-size="14" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">V02</text>
+<rect id="Patient-02-1" x="396" y="252" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="408" y="280" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 1</text>
+<rect id="Patient-02-2" x="396" y="304" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="408" y="332" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 2</text>
+<rect id="Patient-02-3" x="396" y="356" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="408" y="384" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 3</text>
+<rect id="Patient-02-4" x="396" y="408" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="408" y="436" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 4</text>
+<rect id="Patient-02-5" x="396" y="460" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="408" y="488" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 5</text>
+<rect id="Vehicle-Col-03" x="720" y="180" width="320" height="640" rx="16" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<rect id="Vehicle-Badge-03" x="736" y="196" width="288" height="40" rx="10" fill="#27ae60" stroke="#27ae60" stroke-width="0"/>
+<text x="744" y="222" font-size="14" font-weight="700" fill="#111827" text-anchor="start" font-family="Inter, Arial">V03</text>
+<rect id="Patient-03-1" x="736" y="252" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="748" y="280" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 1</text>
+<rect id="Patient-03-2" x="736" y="304" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="748" y="332" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 2</text>
+<rect id="Patient-03-3" x="736" y="356" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="748" y="384" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 3</text>
+<rect id="Patient-03-4" x="736" y="408" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="748" y="436" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 4</text>
+<rect id="Patient-03-5" x="736" y="460" width="288" height="44" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+<text x="748" y="488" font-size="14" font-weight="normal" fill="#111827" text-anchor="start" font-family="Inter, Arial">Patiënt 5</text>
+<rect id="Map-Area" x="1040" y="180" width="360" height="640" rx="16" fill="#EEF2FF" stroke="#E5E7EB" stroke-width="1"/>
+<text x="1064" y="216" font-size="14" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Kaart (klikbare pins, route per voertuigkleur)</text>
+<path d="M800 760 C 840 700, 920 640, 890 560 C 860 500, 980 460, 1040 420" stroke="#e74c3c" stroke-width="4" fill="none"/>
+<path d="M820 220 C 900 260, 980 320, 1060 360 C 1120 380, 1200 420, 1260 460" stroke="#f39c12" stroke-width="4" fill="none"/>
+<path d="M780 520 C 860 520, 920 480, 980 540 C 1040 600, 1160 620, 1330 600" stroke="#27ae60" stroke-width="4" fill="none"/>
+<path d="M980 260 C 1040 300, 1100 340, 1160 380 C 1180 440, 1220 500, 1280 560" stroke="#8e44ad" stroke-width="4" fill="none"/>
+<path d="M820 640 C 900 600, 980 560, 1060 520 C 1160 500, 1260 520, 1360 560" stroke="#2980b9" stroke-width="4" fill="none"/>
+<circle cx="1259" cy="253" r="7" fill="#e74c3c"/>
+<path d="M1259 253 L1259 269" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="1157" cy="356" r="7" fill="#e74c3c"/>
+<path d="M1157 356 L1157 372" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="1286" cy="591" r="7" fill="#e74c3c"/>
+<path d="M1286 591 L1286 607" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="1329" cy="285" r="7" fill="#e74c3c"/>
+<path d="M1329 285 L1329 301" stroke="#e74c3c" stroke-width="2" fill="none"/>
+<circle cx="1198" cy="255" r="7" fill="#f39c12"/>
+<path d="M1198 255 L1198 271" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="1141" cy="502" r="7" fill="#f39c12"/>
+<path d="M1141 502 L1141 518" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="1087" cy="343" r="7" fill="#f39c12"/>
+<path d="M1087 343 L1087 359" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="1261" cy="523" r="7" fill="#f39c12"/>
+<path d="M1261 523 L1261 539" stroke="#f39c12" stroke-width="2" fill="none"/>
+<circle cx="1141" cy="546" r="7" fill="#27ae60"/>
+<path d="M1141 546 L1141 562" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="1306" cy="243" r="7" fill="#27ae60"/>
+<path d="M1306 243 L1306 259" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="1305" cy="603" r="7" fill="#27ae60"/>
+<path d="M1305 603 L1305 619" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="1175" cy="320" r="7" fill="#27ae60"/>
+<path d="M1175 320 L1175 336" stroke="#27ae60" stroke-width="2" fill="none"/>
+<circle cx="1348" cy="415" r="7" fill="#8e44ad"/>
+<path d="M1348 415 L1348 431" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="1105" cy="290" r="7" fill="#8e44ad"/>
+<path d="M1105 290 L1105 306" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="1317" cy="553" r="7" fill="#8e44ad"/>
+<path d="M1317 553 L1317 569" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="1305" cy="619" r="7" fill="#8e44ad"/>
+<path d="M1305 619 L1305 635" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<circle cx="1230" cy="746" r="7" fill="#2980b9"/>
+<path d="M1230 746 L1230 762" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="1185" cy="527" r="7" fill="#2980b9"/>
+<path d="M1185 527 L1185 543" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="1312" cy="561" r="7" fill="#2980b9"/>
+<path d="M1312 561 L1312 577" stroke="#2980b9" stroke-width="2" fill="none"/>
+<circle cx="1321" cy="540" r="7" fill="#2980b9"/>
+<path d="M1321 540 L1321 556" stroke="#2980b9" stroke-width="2" fill="none"/>
+<rect x="1328" y="200" width="52" height="24" rx="6" fill="#FFF" stroke="#E5E7EB" stroke-width="1"/>
+<circle cx="1342" cy="212" r="6" fill="#111827"/>
+<text x="1360" y="216" font-size="12" font-weight="normal" fill="#374151" text-anchor="start" font-family="Inter, Arial">Home</text>
+</svg>

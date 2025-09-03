@@ -290,6 +290,7 @@
 </head>
 <body>
     <div class="container">
+        {% csrf_token %}
         <!-- Header -->
         <div class="header">
             <h1>{{ step_title }}</h1>
@@ -320,7 +321,8 @@
                 <div class="file-info">
                     <h4>Geüpload Bestand</h4>
                     <p><strong>Bestandsnaam:</strong> {{ csv_file_name }}</p>
-                    <p><strong>Aantal rijen:</strong> {{ upload_data.patient_count|default:"Onbekend" }}</p>
+                    <p><strong>Aantal patiënten:</strong> {{ upload_data.patient_count|default:"Onbekend" }}</p>
+                    <p><strong>Preview rijen:</strong> {{ upload_data.csv_data|length|default:"0" }}</p>
                     <p><strong>Upload tijd:</strong> {{ upload_data.upload_time|default:"Onbekend" }}</p>
                 </div>
             </div>
@@ -515,17 +517,169 @@
                     🔄 Terug naar Upload
                 </a>
                 
-                                 {% if not upload_data.validation_result.errors %}
-                 <a href="{% url 'planning_wizard_assignment' %}" class="btn btn-primary">
-                     ✅ Doorgaan naar Toewijzing
-                 </a>
-                 {% else %}
-                 <button class="btn btn-danger" disabled>
-                     ❌ Los eerst de fouten op
-                 </button>
-                 {% endif %}
+                <!-- Geocoding Section -->
+                <div class="geocoding-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;">
+                    <h4 style="margin: 0 0 15px 0; color: #333;">🗺️ Adres Geocoding</h4>
+                    <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
+                        Converteer patiënt adressen naar GPS coördinaten voor nauwkeurige route optimalisatie.
+                    </p>
+                    
+                    <div id="geocodingStatus" style="display: none; margin: 10px 0;">
+                        <div class="loading-indicator">
+                            <span>🔄 Geocoding adressen...</span>
+                            <div class="progress-bar" style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 5px;">
+                                <div class="progress-fill" style="width: 0%; height: 100%; background: #ffd700; border-radius: 2px; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="geocodingResults" style="display: none; margin: 10px 0;">
+                        <div class="results-summary" style="padding: 10px; border-radius: 5px; font-weight: bold;"></div>
+                    </div>
+                    
+                    <button id="geocodeBtn" class="btn btn-info" onclick="startGeocoding()" style="margin-right: 10px;">
+                        🗺️ Start Geocoding
+                    </button>
+                    
+                    <span id="geocodingInfo" style="font-size: 12px; color: #666;">
+                        Vereist Google Maps API voor nauwkeurige routes
+                    </span>
+                </div>
+                
+                {% if not upload_data.validation_result.errors %}
+                <a href="{% url 'planning_wizard_assignment' %}" class="btn btn-primary">
+                    ✅ Doorgaan naar Toewijzing
+                </a>
+                {% else %}
+                <button class="btn btn-danger" disabled>
+                    ❌ Los eerst de fouten op
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
+    
+    <script>
+        function startGeocoding() {
+            const geocodeBtn = document.getElementById('geocodeBtn');
+            const geocodingStatus = document.getElementById('geocodingStatus');
+            const geocodingResults = document.getElementById('geocodingResults');
+            const progressFill = document.querySelector('.progress-fill');
+            
+            // Update UI
+            geocodeBtn.disabled = true;
+            geocodeBtn.innerHTML = '🔄 Geocoding...';
+            geocodingStatus.style.display = 'block';
+            geocodingResults.style.display = 'none';
+            
+            // Simuleer progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+            }, 200);
+            
+            // Maak API call
+            fetch('{% url "api_wizard_geocode_patients" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                setTimeout(() => {
+                    if (data.success) {
+                        // Toon succes resultaten
+                        const resultsDiv = document.querySelector('.results-summary');
+                        resultsDiv.innerHTML = `
+                            <div style="color: #28a745; background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px;">
+                                ✅ ${data.message}<br>
+                                📊 ${data.statistics.total_patients} patiënten, 
+                                ${data.statistics.success_count} succesvol (${data.statistics.success_rate}%)
+                            </div>
+                        `;
+                        geocodingResults.style.display = 'block';
+                        
+                        // Update knop
+                        geocodeBtn.innerHTML = '✅ Geocoding Voltooid';
+                        geocodeBtn.style.background = '#28a745';
+                        geocodeBtn.style.borderColor = '#28a745';
+                        
+                        // Update info tekst
+                        document.getElementById('geocodingInfo').innerHTML = 
+                            `✅ ${data.statistics.success_count} adressen geconverteerd naar GPS coördinaten`;
+                        
+                    } else if (data.fallback_available) {
+                        // Toon fallback beschikbaar
+                        const resultsDiv = document.querySelector('.results-summary');
+                        resultsDiv.innerHTML = `
+                            <div style="color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px;">
+                                ⚠️ ${data.message}<br>
+                                🔄 Fallback geocoding wordt gebruikt voor route optimalisatie
+                            </div>
+                        `;
+                        geocodingResults.style.display = 'block';
+                        
+                        // Update knop
+                        geocodeBtn.innerHTML = '✅ Fallback Geocoding';
+                        geocodeBtn.style.background = '#ffc107';
+                        geocodeBtn.style.borderColor = '#ffc107';
+                        geocodeBtn.style.color = '#212529';
+                        
+                        // Update info tekst
+                        document.getElementById('geocodingInfo').innerHTML = 
+                            `⚠️ Fallback geocoding actief - Google Maps API niet beschikbaar`;
+                        
+                    } else {
+                        // Toon error
+                        const resultsDiv = document.querySelector('.results-summary');
+                        resultsDiv.innerHTML = `
+                            <div style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;">
+                                ❌ ${data.message || data.error}
+                            </div>
+                        `;
+                        geocodingResults.style.display = 'block';
+                        
+                        // Reset knop
+                        geocodeBtn.disabled = false;
+                        geocodeBtn.innerHTML = '🗺️ Start Geocoding';
+                    }
+                    
+                    geocodingStatus.style.display = 'none';
+                }, 500);
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                console.error('Geocoding error:', error);
+                
+                const resultsDiv = document.querySelector('.results-summary');
+                resultsDiv.innerHTML = `
+                    <div style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;">
+                        ❌ Fout bij geocoding: ${error.message}
+                    </div>
+                `;
+                geocodingResults.style.display = 'block';
+                geocodingStatus.style.display = 'none';
+                
+                // Reset knop
+                geocodeBtn.disabled = false;
+                geocodeBtn.innerHTML = '🗺️ Start Geocoding';
+            });
+        }
+
+        // Automatisch geocoding starten wanneer pagina laadt
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start geocoding automatisch na 1 seconde
+            setTimeout(() => {
+                startGeocoding();
+            }, 1000);
+        });
+    </script>
 </body>
 </html>

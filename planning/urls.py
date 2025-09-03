@@ -4,14 +4,14 @@ from . import views
 urlpatterns = [
     # Dashboard
     path('', views.home, name='home'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     path('patients/today/', views.patients_today, name='patients_today'),
     
     # Planning (direct naar route results)
     path('planning/', views.route_results, name='planning_overview'),  # Redirect naar route results
-    path('planning/new/', views.new_planning, name='new_planning'),
-    path('planning/step2/', views.planning_step2, name='planning_step2'),
-    path('planning/step3/', views.planning_step3, name='planning_step3'),
+    # Oude planning URLs verwijderd - vervangen door wizard
     path('planning/concept/', views.concept_planning, name='concept_planning'),
+    path('planning/new-ui/', views.planning_new, name='planning_new'),
     path('planning/processing/', views.planning_processing, name='planning_processing'),
     path('planning/results/', views.planning_results, name='planning_results'),
     path('planning/<int:planning_id>/', views.view_planning, name='view_planning'),
@@ -68,6 +68,12 @@ urlpatterns = [
     path('api/wizard/auto-assign/', views.api_wizard_auto_assign, name='api_wizard_auto_assign'),
     path('api/wizard/generate-routes/', views.api_wizard_generate_routes, name='api_wizard_generate_routes'),
     path('api/wizard/save-planning/', views.api_wizard_save_planning, name='api_wizard_save_planning'),
+    path('api/update-patient-assignment/', views.api_update_patient_assignment, name='api_update_patient_assignment'),
+
+    # Google Maps API endpoints
+    path('api/google-maps-routes/', views.api_wizard_google_maps_routes, name='api_wizard_google_maps_routes'),
+    path('api/geocode-patients/', views.api_wizard_geocode_patients, name='api_wizard_geocode_patients'),
+    path('api/real-time-update/', views.api_wizard_real_time_update, name='api_wizard_real_time_update'),
 
     # Parser Configurator
     path('parser-configurator/', views.parser_configurator, name='parser_configurator'),
