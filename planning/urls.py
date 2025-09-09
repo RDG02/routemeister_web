@@ -11,7 +11,6 @@ urlpatterns = [
     path('planning/', views.route_results, name='planning_overview'),  # Redirect naar route results
     # Oude planning URLs verwijderd - vervangen door wizard
     path('planning/concept/', views.concept_planning, name='concept_planning'),
-    path('planning/new-ui/', views.planning_new, name='planning_new'),
     path('planning/processing/', views.planning_processing, name='planning_processing'),
     path('planning/results/', views.planning_results, name='planning_results'),
     path('planning/<int:planning_id>/', views.view_planning, name='view_planning'),
