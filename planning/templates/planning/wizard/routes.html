@@ -206,8 +206,11 @@ function initializeDragDrop() {
         item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragend', handleDragEnd);
         
-        // Ensure draggable attribute is set
+        // Ensure draggable attribute is set and cursor is correct
         item.draggable = true;
+        item.style.cursor = 'grab';
+        
+        console.log('Initialized drag for patient:', item.dataset.patientName);
     });
 
     // Make vehicle patient lists droppable
@@ -226,6 +229,8 @@ function initializeDragDrop() {
         zone.addEventListener('drop', handleDrop);
         zone.addEventListener('dragenter', handleDragEnter);
         zone.addEventListener('dragleave', handleDragLeave);
+        
+        console.log('Initialized drop zone for vehicle:', zone.dataset.vehicleId);
     });
 }
 
@@ -424,8 +429,18 @@ function createVehicleCard(assignment) {
                     <button class="remove-patient" onclick="removePatientFromVehicle(this, '${vehicle.id}')">❌</button>
                 </div>
             `).join('')}
+            ${patients.length === 0 ? '<div class="empty-vehicle"><span class="empty-icon">👥</span><span class="empty-text">Geen patiënten toegewezen</span></div>' : ''}
         </div>
     `;
+    
+    // Add drag event listeners to patient items in this vehicle card
+    setTimeout(() => {
+        const patientItems = card.querySelectorAll('.patient-item.draggable');
+        patientItems.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+        });
+    }, 10);
     
     return card;
 }
@@ -1039,12 +1054,16 @@ function goBack() {
 }
 
 .patient-item.draggable {
-    cursor: grab;
+    cursor: grab !important;
     transition: all 0.2s ease;
 }
 
 .patient-item.draggable:active {
-    cursor: grabbing;
+    cursor: grabbing !important;
+}
+
+.patient-item.draggable:hover {
+    cursor: grab !important;
 }
 
 .patient-item.dragging {
@@ -1611,6 +1630,11 @@ function filterByTimeslot(time, timeslotId, timeslotType) {
         vehicleCardsList.appendChild(emptyState);
     }
     
+    // Re-initialize drag and drop for new elements
+    setTimeout(() => {
+        initializeDragDrop();
+    }, 100);
+    
     // Show unassigned patients for this timeslot
     const unassignedPatients = timeslotData.unassigned_patients;
     const unassignedSection = document.getElementById('unassignedSection');
@@ -1660,6 +1684,11 @@ function clearTimeFilter() {
     
     // Show all routes on map
     loadRoutesOnMap();
+    
+    // Re-initialize drag and drop
+    setTimeout(() => {
+        initializeDragDrop();
+    }, 100);
 }
 
 function filterRoutesOnMap(timeslotId) {
