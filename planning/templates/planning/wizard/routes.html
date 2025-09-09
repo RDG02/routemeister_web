@@ -167,10 +167,20 @@ let currentTimeslotId = null;
 
 // Initialize the interface
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Routes page loaded');
-    console.log('Routes by timeslot:', routesByTimeslot);
-    console.log('Routes by timeslot type:', typeof routesByTimeslot);
-    console.log('Routes by timeslot keys:', Object.keys(routesByTimeslot || {}));
+    console.log('🚀 Routes page loaded');
+    console.log('📊 Routes by timeslot:', routesByTimeslot);
+    console.log('📊 Routes by timeslot type:', typeof routesByTimeslot);
+    console.log('📊 Routes by timeslot keys:', Object.keys(routesByTimeslot || {}));
+    
+    // Debug: Check if data is properly loaded
+    if (routesByTimeslot && Object.keys(routesByTimeslot).length > 0) {
+        console.log('✅ Route data loaded successfully');
+        Object.entries(routesByTimeslot).forEach(([timeslotId, data]) => {
+            console.log(`📅 Timeslot ${timeslotId}:`, data);
+        });
+    } else {
+        console.log('❌ No route data found');
+    }
     
     // Initialize Google Maps first
     initGoogleMaps();
@@ -400,8 +410,12 @@ function removePatientFromVehicle(removeButton, vehicleId) {
 }
 
 function createVehicleCard(assignment) {
+    console.log('🚐 Creating vehicle card for assignment:', assignment);
     const vehicle = assignment.vehicle;
     const patients = assignment.patients;
+    
+    console.log('🚐 Vehicle:', vehicle);
+    console.log('👥 Patients:', patients);
     
     const card = document.createElement('div');
     card.className = 'vehicle-card';
@@ -1684,8 +1698,8 @@ function getVehicleColor(vehicleId) {
 let currentTimeFilter = null;
 
 function filterByTimeslot(time, timeslotId, timeslotType) {
-    console.log('Filtering by timeslot:', time, timeslotId, timeslotType);
-    console.log('Available timeslot IDs:', Object.keys(routesByTimeslot || {}));
+    console.log('🔍 Filtering by timeslot:', time, timeslotId, timeslotType);
+    console.log('🔍 Available timeslot IDs:', Object.keys(routesByTimeslot || {}));
     
     // Update active state
     document.querySelectorAll('.timeline-segment').forEach(segment => {
@@ -1703,12 +1717,12 @@ function filterByTimeslot(time, timeslotId, timeslotType) {
     // Get route data for this timeslot
     const timeslotData = routesByTimeslot[timeslotId];
     if (!timeslotData) {
-        console.log('No data found for timeslot:', timeslotId);
-        console.log('Available data:', routesByTimeslot);
+        console.log('❌ No data found for timeslot:', timeslotId);
+        console.log('❌ Available data:', routesByTimeslot);
         return;
     }
     
-    console.log('Timeslot data:', timeslotData);
+    console.log('✅ Timeslot data found:', timeslotData);
     
     // Clear existing vehicle cards
     const vehicleCardsList = document.getElementById('vehicleCardsList');
