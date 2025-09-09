@@ -1,248 +1,461 @@
-{% load planning_extras %}
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title }} - Routemeister</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        
-        .container {
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <!-- Progress Bar -->
+    <div class="wizard-progress">
+        <div class="progress-step completed">
+            <div class="step-number">✓</div>
+            <div class="step-label">Upload</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step active">
+            <div class="step-number">2</div>
+            <div class="step-label">Preview & Validatie</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Auto-Assignment & Routes</div>
+        </div>
+    </div>
+
+    <!-- Preview Section -->
+    <div class="preview-section">
+        <h1>👁️ Preview & Validatie</h1>
+        <p class="section-description">
+            Controleer de geüploade data voordat je verder gaat naar de auto-assignment stap.
+        </p>
+
+        <!-- Data Summary -->
+        <div class="data-summary">
+            <div class="summary-card">
+                <div class="summary-icon">📊</div>
+                <div class="summary-content">
+                    <h3>Data Overzicht</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Bestand:</span>
+                            <span class="stat-value">{{ upload_data.filename|default:"Onbekend" }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Patiënten:</span>
+                            <span class="stat-value">{{ upload_data.patient_count|default:"0" }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Formaat:</span>
+                            <span class="stat-value">{{ upload_data.detection_result.detected_format|default:"Onbekend" }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Confidence:</span>
+                            <span class="stat-value">{{ upload_data.detection_result.confidence|default:"0" }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV Data Preview -->
+        <div class="csv-preview">
+            <h3>📋 CSV Data Preview</h3>
+            <div class="preview-table-container">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Rij</th>
+                            <th>Patient ID</th>
+                            <th>Naam</th>
+                            <th>Adres</th>
+                            <th>Plaats</th>
+                            <th>Start Tijd</th>
+                            <th>Eind Tijd</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in upload_data.csv_data|slice:":10" %}
+                        <tr class="{% if row.validation_errors %}error-row{% elif row.validation_warnings %}warning-row{% else %}valid-row{% endif %}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ row.data.0|default:"-" }}</td>
+                            <td>{{ row.data.2|default:"" }} {{ row.data.3|default:"" }}</td>
+                            <td>{{ row.data.6|default:"-" }}</td>
+                            <td>{{ row.data.8|default:"-" }}</td>
+                            <td>{{ row.data.17|default:"-" }}</td>
+                            <td>{{ row.data.18|default:"-" }}</td>
+                            <td>
+                                {% if row.validation_errors %}
+                                    <span class="status-badge error">❌ Fout</span>
+                                {% elif row.validation_warnings %}
+                                    <span class="status-badge warning">⚠️ Waarschuwing</span>
+                                {% else %}
+                                    <span class="status-badge success">✅ OK</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if upload_data.csv_data|length > 10 %}
+            <div class="preview-note">
+                <p>⚠️ Alleen de eerste 10 rijen worden getoond. Totaal: {{ upload_data.csv_data|length }} rijen</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Validation Results -->
+        <div class="validation-results">
+            <h3>✅ Validatie Resultaten</h3>
+            <div class="validation-grid">
+                <div class="validation-card success">
+                    <div class="validation-icon">✅</div>
+                    <div class="validation-content">
+                        <h4>Geldige Rijen</h4>
+                        <div class="validation-count">{{ upload_data.validation_result.valid_rows|default:"0" }}</div>
+                    </div>
+                </div>
+                
+                <div class="validation-card warning">
+                    <div class="validation-icon">⚠️</div>
+                    <div class="validation-content">
+                        <h4>Waarschuwingen</h4>
+                        <div class="validation-count">{{ upload_data.validation_result.warnings|length|default:"0" }}</div>
+                    </div>
+                </div>
+                
+                <div class="validation-card error">
+                    <div class="validation-icon">❌</div>
+                    <div class="validation-content">
+                        <h4>Fouten</h4>
+                        <div class="validation-count">{{ upload_data.validation_result.errors|length|default:"0" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="goBack()">
+                <span class="btn-icon">⬅️</span>
+                Terug naar Upload
+            </button>
+            <button class="btn btn-primary" onclick="continueToAssignment()">
+                <span class="btn-icon">🚀</span>
+                Start Auto-Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function goBack() {
+    window.location.href = '{% url "planning_wizard_upload" %}';
+}
+
+function continueToAssignment() {
+    // Disable button to prevent double clicks
+    const nextBtn = document.querySelector('.btn-primary[onclick="continueToAssignment()"]');
+    nextBtn.disabled = true;
+    nextBtn.innerHTML = '<span class="btn-icon">⏳</span> Laden...';
+    
+    // Redirect to assignment step
+    setTimeout(() => {
+        window.location.href = '{% url "planning_wizard_assignment" %}';
+    }, 500);
+}
+</script>
+
+<style>
+.wizard-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .header h1 {
-            color: #333;
-            margin: 0 0 10px 0;
-            font-size: 2.5em;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 1.2em;
-            margin: 0;
-        }
-        
-        .progress-bar {
-            display: flex;
-            justify-content: center;
-            margin: 30px 0;
-            gap: 20px;
-        }
-        
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+    padding: 2rem;
+}
+
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.progress-step.active {
+    opacity: 1;
+}
+
+.progress-step.completed .step-number {
+    background: #28a745;
         }
         
         .step-number {
             width: 40px;
             height: 40px;
             border-radius: 50%;
+    background: #6c757d;
+    color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            color: white;
-        }
-        
-        .step.active .step-number {
-            background: #ffd700;
-            color: #333;
-        }
-        
-        .step.completed .step-number {
-            background: #28a745;
-        }
-        
-        .step.pending .step-number {
-            background: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.progress-step.active .step-number {
+    background: #F8CD46;
         }
         
         .step-label {
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.progress-line {
+    width: 80px;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 1rem;
         }
         
         .preview-section {
-            margin-bottom: 30px;
-        }
-        
-        .preview-section h3 {
-            color: #333;
-            border-bottom: 2px solid #ffd700;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .file-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .file-info h4 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-        
-        .file-info p {
-            margin: 5px 0;
-            color: #666;
-        }
-        
-        .detection-results {
-            background: #e3f2fd;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .detection-results h4 {
-            margin: 0 0 15px 0;
-            color: #1976d2;
-        }
-        
-        .detection-grid {
+    margin-bottom: 3rem;
+}
+
+.preview-section h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.section-description {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.data-summary {
+    margin-bottom: 2rem;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.summary-icon {
+    font-size: 3rem;
+    margin-right: 1.5rem;
+}
+
+.summary-content h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.summary-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .detection-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #bbdefb;
-        }
-        
-        .detection-item strong {
-            color: #1976d2;
-        }
-        
-        .csv-table {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.stat-value {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.csv-preview {
+    margin-bottom: 2rem;
+}
+
+.csv-preview h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.preview-table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.preview-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 12px;
-        }
-        
-        .csv-table th,
-        .csv-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 0.75rem;
             text-align: left;
-        }
-        
-        .csv-table th {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.preview-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.preview-table tr:hover {
             background: #f8f9fa;
-            font-weight: bold;
-        }
-        
-        .row-error {
-            background: #ffebee;
-        }
-        
-        .row-ok {
-            background: #e8f5e8;
-        }
-        
-        .row-header {
-            background: #e3f2fd;
-            font-weight: bold;
-        }
-        
-        .errors-section {
-            background: #ffebee;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .errors-section h4 {
-            color: #c62828;
-            margin: 0 0 15px 0;
-        }
-        
-        .error-item {
+}
+
+.error-row {
+    background: #fff5f5;
+}
+
+.warning-row {
+    background: #fffbeb;
+}
+
+.valid-row {
+    background: #f0fff4;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-badge.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.preview-note {
+    text-align: center;
+    margin-top: 1rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.validation-results {
+    margin-bottom: 2rem;
+}
+
+.validation-results h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.validation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.validation-card {
+    display: flex;
+    align-items: center;
             background: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            border-left: 4px solid #f44336;
-        }
-        
-        .warnings-section {
-            background: #fff3e0;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .warnings-section h4 {
-            color: #ef6c00;
-            margin: 0 0 15px 0;
-        }
-        
-        .warning-item {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            border-left: 4px solid #ff9800;
-        }
-        
-        .actions {
-            text-align: center;
-            margin-top: 30px;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.validation-card.success {
+    border-left: 4px solid #28a745;
+}
+
+.validation-card.warning {
+    border-left: 4px solid #ffc107;
+}
+
+.validation-card.error {
+    border-left: 4px solid #dc3545;
+}
+
+.validation-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.validation-content h4 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.validation-count {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
         }
         
         .btn {
-            padding: 15px 30px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
+    text-decoration: none;
+    font-weight: 500;
             cursor: pointer;
-            margin: 0 10px;
-            transition: all 0.3s ease;
+    transition: all 0.2s;
         }
         
         .btn-primary {
-            background: #ffd700;
-            color: #333;
+    background: linear-gradient(135deg, #F8CD46, #f39c12);
+    color: white;
         }
         
         .btn-primary:hover {
-            background: #ffed4e;
-            transform: translateY(-2px);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(248, 205, 70, 0.3);
         }
         
         .btn-secondary {
@@ -252,434 +465,41 @@
         
         .btn-secondary:hover {
             background: #5a6268;
-            transform: translateY(-2px);
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-        }
-        
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .status-ok {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status-error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .status-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        {% csrf_token %}
-        <!-- Header -->
-        <div class="header">
-            <h1>{{ step_title }}</h1>
-            <p>{{ step_description }}</p>
-        </div>
-        
-        <!-- Progress Bar -->
-        <div class="progress-bar">
-            <div class="step completed">
-                <div class="step-number">1</div>
-                <div class="step-label">Upload</div>
-            </div>
-            <div class="step active">
-                <div class="step-number">2</div>
-                <div class="step-label">Preview</div>
-            </div>
-            <div class="step pending">
-                <div class="step-number">3</div>
-                <div class="step-label">Toewijzing</div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="content">
-            <!-- File Information -->
-            <div class="preview-section">
-                <h3>📁 Bestand Informatie</h3>
-                <div class="file-info">
-                    <h4>Geüpload Bestand</h4>
-                    <p><strong>Bestandsnaam:</strong> {{ csv_file_name }}</p>
-                    <p><strong>Aantal patiënten:</strong> {{ upload_data.patient_count|default:"Onbekend" }}</p>
-                    <p><strong>Preview rijen:</strong> {{ upload_data.csv_data|length|default:"0" }}</p>
-                    <p><strong>Upload tijd:</strong> {{ upload_data.upload_time|default:"Onbekend" }}</p>
-                </div>
-            </div>
-            
-            <!-- Detection Results -->
-            {% if detection_result %}
-            <div class="preview-section">
-                <h3>🤖 Auto-Detectie Resultaten</h3>
-                <div class="detection-results">
-                    <h4>Gedetecteerde Configuratie</h4>
-                    <div class="detection-grid">
-                        <div class="detection-item">
-                            <strong>Formaat:</strong><br>
-                            {{ detection_result.detected_format|title|default:"Onbekend" }}
-                        </div>
-                        <div class="detection-item">
-                            <strong>Betrouwbaarheid:</strong><br>
-                            {{ detection_result.confidence|floatformat:1|default:"0" }}%
-                        </div>
-                        <div class="detection-item">
-                            <strong>Config ID:</strong><br>
-                            {{ detection_result.config_id|default:"Auto-detectie" }}
-                        </div>
-                    </div>
-                    
-                    {% if detection_result.warnings %}
-                    <div style="margin-top: 15px;">
-                        <strong>Waarschuwingen:</strong>
-                        <ul>
-                            {% for warning in detection_result.warnings %}
-                            <li>{{ warning }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-            
-                         <!-- Errors -->
-             {% if upload_data.validation_result.errors %}
-             <div class="preview-section">
-                 <h3>❌ Fouten Gevonden</h3>
-                 <div class="errors-section">
-                     <h4>De volgende fouten zijn gevonden in de CSV data:</h4>
-                     {% for error in upload_data.validation_result.errors %}
-                     <div class="error-item">
-                         {{ error }}
-                     </div>
-                     {% endfor %}
-                 </div>
-             </div>
-             {% endif %}
-             
-             <!-- Warnings -->
-             {% if upload_data.validation_result.warnings or detection_result.warnings %}
-             <div class="preview-section">
-                 <h3>⚠️ Waarschuwingen</h3>
-                 <div class="warnings-section">
-                     <h4>De volgende waarschuwingen zijn gevonden:</h4>
-                     {% for warning in upload_data.validation_result.warnings %}
-                     <div class="warning-item">
-                         {{ warning }}
-                     </div>
-                     {% endfor %}
-                     {% for warning in detection_result.warnings %}
-                     <div class="warning-item">
-                         {{ warning }}
-                     </div>
-                     {% endfor %}
-                 </div>
-             </div>
-             {% endif %}
-            
-                         <!-- CSV Preview -->
-             {% if upload_data.csv_data %}
-             <div class="preview-section">
-                 <h3>📋 CSV Data Preview</h3>
-                 <div style="overflow-x: auto;">
-                     <table class="csv-table">
-                         <thead>
-                             <tr>
-                                 <th>Rij</th>
-                                 <th>Type</th>
-                                 <th>Status</th>
-                                 <th>Patient ID</th>
-                                 <th>Achternaam</th>
-                                 <th>Voornaam</th>
-                                 <th>Adres</th>
-                                 <th>Plaats</th>
-                                 <th>Telefoon</th>
-                                 <th>Datum</th>
-                                 <th>Start Tijd</th>
-                                 <th>Eind Tijd</th>
-                             </tr>
-                         </thead>
-                         <tbody>
-                             {% for row in upload_data.csv_data %}
-                             <tr class="{% if row.type == 'header' %}row-header{% elif row.status == 'error' %}row-error{% else %}row-ok{% endif %}">
-                                 <td>{{ row.line_number|default:forloop.counter }}</td>
-                                 <td>{{ row.type|title|default:"Data" }}</td>
-                                 <td>
-                                     {% if row.type == 'header' %}
-                                         <span class="status-badge status-ok">📋 Header</span>
-                                     {% else %}
-                                         <span class="status-badge status-ok">✅ OK</span>
-                                     {% endif %}
-                                 </td>
-                                 <td>
-                                     {% if detection_result and detection_result.mappings.patient_id %}
-                                         {{ row.data|get_item:detection_result.mappings.patient_id|default:"-" }}
-                                     {% else %}
-                                         {{ row.data.0|default:"-" }}
-                                     {% endif %}
-                                 </td>
-                                                                   <td>
-                                      {% if detection_result and detection_result.mappings.achternaam %}
-                                          {{ row.data|get_item:detection_result.mappings.achternaam|default:"-" }}
-                                      {% elif detection_result and detection_result.mappings.naam %}
-                                          {{ row.data|get_item:detection_result.mappings.naam|default:"-" }}
-                                      {% else %}
-                                          {{ row.data.1|default:"-" }}
-                                      {% endif %}
-                                  </td>
-                                  <td>
-                                      {% if detection_result and detection_result.mappings.voornaam %}
-                                          {{ row.data|get_item:detection_result.mappings.voornaam|default:"-" }}
-                                      {% else %}
-                                          {{ row.data.2|default:"-" }}
-                                      {% endif %}
-                                  </td>
-                                 <td>
-                                     {% if detection_result and detection_result.mappings.adres %}
-                                         {{ row.data|get_item:detection_result.mappings.adres|default:"-" }}
-                                     {% else %}
-                                         {{ row.data.2|default:"-" }}
-                                     {% endif %}
-                                 </td>
-                                 <td>
-                                     {% if detection_result and detection_result.mappings.plaats %}
-                                         {{ row.data|get_item:detection_result.mappings.plaats|default:"-" }}
-                                     {% else %}
-                                         {{ row.data.3|default:"-" }}
-                                     {% endif %}
-                                 </td>
-                                 <td>
-                                     {% if detection_result and detection_result.mappings.telefoon1 %}
-                                         {{ row.data|get_item:detection_result.mappings.telefoon1|default:"-" }}
-                                         {% if detection_result.mappings.telefoon2 %}
-                                             / {{ row.data|get_item:detection_result.mappings.telefoon2|default:"" }}
-                                         {% endif %}
-                                     {% elif detection_result and detection_result.mappings.telefoon %}
-                                         {{ row.data|get_item:detection_result.mappings.telefoon|default:"-" }}
-                                     {% else %}
-                                         {{ row.data.4|default:"-" }}
-                                     {% endif %}
-                                 </td>
-                                 <td>
-                                     {% if detection_result and detection_result.mappings.datum %}
-                                         {{ row.data|get_item:detection_result.mappings.datum|default:"-" }}
-                                     {% else %}
-                                         {{ row.data.5|default:"-" }}
-                                     {% endif %}
-                                 </td>
-                                                                   <td>
-                                      {% if detection_result and detection_result.mappings.start_tijd %}
-                                          {{ row.data|get_item:detection_result.mappings.start_tijd|default:"-" }}
-                                      {% elif detection_result and detection_result.mappings.ophaal_tijd %}
-                                          {{ row.data|get_item:detection_result.mappings.ophaal_tijd|default:"-" }}
-                                      {% else %}
-                                          {{ row.data.6|default:"-" }}
-                                      {% endif %}
-                                  </td>
-                                  <td>
-                                      {% if detection_result and detection_result.mappings.eind_tijd %}
-                                          {{ row.data|get_item:detection_result.mappings.eind_tijd|default:"-" }}
-                                      {% else %}
-                                          {{ row.data.7|default:"-" }}
-                                      {% endif %}
-                                  </td>
-                             </tr>
-                             {% endfor %}
-                         </tbody>
-                     </table>
-                 </div>
-             </div>
-             {% endif %}
-            
-            <!-- Actions -->
-            <div class="actions">
-                <a href="{% url 'planning_wizard_upload' %}" class="btn btn-secondary">
-                    🔄 Terug naar Upload
-                </a>
-                
-                <!-- Geocoding Section -->
-                <div class="geocoding-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;">
-                    <h4 style="margin: 0 0 15px 0; color: #333;">🗺️ Adres Geocoding</h4>
-                    <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
-                        Converteer patiënt adressen naar GPS coördinaten voor nauwkeurige route optimalisatie.
-                    </p>
-                    
-                    <div id="geocodingStatus" style="display: none; margin: 10px 0;">
-                        <div class="loading-indicator">
-                            <span>🔄 Geocoding adressen...</span>
-                            <div class="progress-bar" style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 5px;">
-                                <div class="progress-fill" style="width: 0%; height: 100%; background: #ffd700; border-radius: 2px; transition: width 0.3s;"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="geocodingResults" style="display: none; margin: 10px 0;">
-                        <div class="results-summary" style="padding: 10px; border-radius: 5px; font-weight: bold;"></div>
-                    </div>
-                    
-                    <button id="geocodeBtn" class="btn btn-info" onclick="startGeocoding()" style="margin-right: 10px;">
-                        🗺️ Start Geocoding
-                    </button>
-                    
-                    <span id="geocodingInfo" style="font-size: 12px; color: #666;">
-                        Vereist Google Maps API voor nauwkeurige routes
-                    </span>
-                </div>
-                
-                {% if not upload_data.validation_result.errors %}
-                <a href="{% url 'planning_wizard_assignment' %}" class="btn btn-primary">
-                    ✅ Doorgaan naar Toewijzing
-                </a>
-                {% else %}
-                <button class="btn btn-danger" disabled>
-                    ❌ Los eerst de fouten op
-                </button>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        function startGeocoding() {
-            const geocodeBtn = document.getElementById('geocodeBtn');
-            const geocodingStatus = document.getElementById('geocodingStatus');
-            const geocodingResults = document.getElementById('geocodingResults');
-            const progressFill = document.querySelector('.progress-fill');
-            
-            // Update UI
-            geocodeBtn.disabled = true;
-            geocodeBtn.innerHTML = '🔄 Geocoding...';
-            geocodingStatus.style.display = 'block';
-            geocodingResults.style.display = 'none';
-            
-            // Simuleer progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 90) progress = 90;
-                progressFill.style.width = progress + '%';
-            }, 200);
-            
-            // Maak API call
-            fetch('{% url "api_wizard_geocode_patients" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                clearInterval(progressInterval);
-                progressFill.style.width = '100%';
-                
-                setTimeout(() => {
-                    if (data.success) {
-                        // Toon succes resultaten
-                        const resultsDiv = document.querySelector('.results-summary');
-                        resultsDiv.innerHTML = `
-                            <div style="color: #28a745; background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px;">
-                                ✅ ${data.message}<br>
-                                📊 ${data.statistics.total_patients} patiënten, 
-                                ${data.statistics.success_count} succesvol (${data.statistics.success_rate}%)
-                            </div>
-                        `;
-                        geocodingResults.style.display = 'block';
-                        
-                        // Update knop
-                        geocodeBtn.innerHTML = '✅ Geocoding Voltooid';
-                        geocodeBtn.style.background = '#28a745';
-                        geocodeBtn.style.borderColor = '#28a745';
-                        
-                        // Update info tekst
-                        document.getElementById('geocodingInfo').innerHTML = 
-                            `✅ ${data.statistics.success_count} adressen geconverteerd naar GPS coördinaten`;
-                        
-                    } else if (data.fallback_available) {
-                        // Toon fallback beschikbaar
-                        const resultsDiv = document.querySelector('.results-summary');
-                        resultsDiv.innerHTML = `
-                            <div style="color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px;">
-                                ⚠️ ${data.message}<br>
-                                🔄 Fallback geocoding wordt gebruikt voor route optimalisatie
-                            </div>
-                        `;
-                        geocodingResults.style.display = 'block';
-                        
-                        // Update knop
-                        geocodeBtn.innerHTML = '✅ Fallback Geocoding';
-                        geocodeBtn.style.background = '#ffc107';
-                        geocodeBtn.style.borderColor = '#ffc107';
-                        geocodeBtn.style.color = '#212529';
-                        
-                        // Update info tekst
-                        document.getElementById('geocodingInfo').innerHTML = 
-                            `⚠️ Fallback geocoding actief - Google Maps API niet beschikbaar`;
-                        
-                    } else {
-                        // Toon error
-                        const resultsDiv = document.querySelector('.results-summary');
-                        resultsDiv.innerHTML = `
-                            <div style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;">
-                                ❌ ${data.message || data.error}
-                            </div>
-                        `;
-                        geocodingResults.style.display = 'block';
-                        
-                        // Reset knop
-                        geocodeBtn.disabled = false;
-                        geocodeBtn.innerHTML = '🗺️ Start Geocoding';
-                    }
-                    
-                    geocodingStatus.style.display = 'none';
-                }, 500);
-            })
-            .catch(error => {
-                clearInterval(progressInterval);
-                console.error('Geocoding error:', error);
-                
-                const resultsDiv = document.querySelector('.results-summary');
-                resultsDiv.innerHTML = `
-                    <div style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;">
-                        ❌ Fout bij geocoding: ${error.message}
-                    </div>
-                `;
-                geocodingResults.style.display = 'block';
-                geocodingStatus.style.display = 'none';
-                
-                // Reset knop
-                geocodeBtn.disabled = false;
-                geocodeBtn.innerHTML = '🗺️ Start Geocoding';
-            });
-        }
+}
 
-        // Automatisch geocoding starten wanneer pagina laadt
-        document.addEventListener('DOMContentLoaded', function() {
-            // Start geocoding automatisch na 1 seconde
-            setTimeout(() => {
-                startGeocoding();
-            }, 1000);
-        });
-    </script>
-</body>
-</html>
+.btn-icon {
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .wizard-container {
+        padding: 1rem;
+    }
+    
+    .preview-section h1 {
+        font-size: 2rem;
+    }
+    
+    .summary-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .validation-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .preview-table {
+        font-size: 0.9rem;
+    }
+    
+    .preview-table th,
+    .preview-table td {
+        padding: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

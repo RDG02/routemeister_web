@@ -589,11 +589,19 @@ class GoogleMapsService:
             # Check capaciteit
             if len(assignments[vehicle]) < vehicle.aantal_zitplaatsen - 1:  # -1 voor chauffeur
                 assignments[vehicle].append(patient)
+                # Wijs voertuig toe aan patiënt in database
+                patient.toegewezen_voertuig = vehicle
+                patient.save()
+                logger.info(f"✅ Patiënt {patient.naam} toegewezen aan voertuig {vehicle.referentie or vehicle.merk_model}")
             else:
                 # Zoek een ander voertuig met ruimte
                 for other_vehicle in vehicles:
                     if len(assignments[other_vehicle]) < other_vehicle.aantal_zitplaatsen - 1:
                         assignments[other_vehicle].append(patient)
+                        # Wijs voertuig toe aan patiënt in database
+                        patient.toegewezen_voertuig = other_vehicle
+                        patient.save()
+                        logger.info(f"✅ Patiënt {patient.naam} toegewezen aan voertuig {other_vehicle.referentie or other_vehicle.merk_model}")
                         break
         
         return assignments

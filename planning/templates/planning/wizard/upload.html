@@ -9,20 +9,26 @@
     <div class="wizard-progress">
         <div class="progress-step active">
             <div class="step-number">1</div>
-            <div class="step-label">Upload & Preview</div>
+            <div class="step-label">Upload</div>
         </div>
         <div class="progress-line"></div>
         <div class="progress-step">
             <div class="step-number">2</div>
-            <div class="step-label">Toewijzing & Routes</div>
+            <div class="step-label">Preview & Validatie</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Auto-Assignment & Routes</div>
         </div>
     </div>
 
     <!-- Upload Section -->
     <div class="upload-section">
-        <h1>📁 Upload & Preview</h1>
+        <h1>📁 Upload CSV/SLK Bestand</h1>
         <p class="section-description">
-            Upload je CSV of SLK bestand. De wizard detecteert automatisch het formaat en toont een preview.
+            Upload je bestand met patiëntgegevens.
+            Na upload ga je automatisch door naar het preview scherm.
         </p>
 
         <!-- File Upload Area -->
@@ -59,14 +65,35 @@
                 </div>
             </div>
             
+            <!-- Parser Details -->
+            <div class="parser-details" id="parserDetails" style="display: none;">
+                <h4>🔧 Parser Instellingen</h4>
+                <div class="parser-info" id="parserInfo"></div>
+            </div>
+            
+            <!-- Data Preview -->
+            <div class="data-preview" id="dataPreview" style="display: none;">
+                <h4>📋 Data Preview</h4>
+                <div class="preview-table-container">
+                    <table class="preview-table" id="previewTable">
+                        <thead>
+                            <tr>
+                                <th>Rij</th>
+                                <th>Type</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="showPreview()">
-                    <span class="btn-icon">👁️</span>
-                    Bekijk Preview
-                </button>
                 <button class="btn btn-primary" onclick="continueToNextStep()">
-                    <span class="btn-icon">➡️</span>
-                    Volgende Stap
+                    <span class="btn-icon">🚀</span>
+                    Start Auto-Assignment
                 </button>
             </div>
         </div>
@@ -87,29 +114,7 @@
         </div>
     </div>
 
-    <!-- Help Section -->
-    <div class="help-section">
-        <h3>💡 Tips voor uploaden</h3>
-        <div class="tips-grid">
-            <div class="tip-card">
-                <div class="tip-icon">📋</div>
-                <h4>Bestandsformaat</h4>
-                <p>Gebruik CSV of SLK bestanden met patiëntgegevens</p>
-            </div>
-            
-            <div class="tip-card">
-                <div class="tip-icon">🔍</div>
-                <h4>Auto-detectie</h4>
-                <p>De wizard detecteert automatisch kolommen en formaten</p>
-            </div>
-            
-            <div class="tip-card">
-                <div class="tip-icon">✅</div>
-                <h4>Validatie</h4>
-                <p>Data wordt automatisch gevalideerd voor fouten</p>
-            </div>
-        </div>
-    </div>
+
 </div>
 
 <script>
@@ -229,7 +234,7 @@ function showProgress() {
         } else if (progress <= 90) {
             progressText.textContent = 'Data valideren...';
         } else {
-            progressText.textContent = 'Voltooid!';
+            progressText.textContent = 'Voltooid! Doorgaan naar preview...';
             clearInterval(interval);
         }
     }, 200);
@@ -237,8 +242,8 @@ function showProgress() {
 
 function showResults(data) {
     document.getElementById('uploadProgress').style.display = 'none';
-    document.getElementById('uploadResults').style.display = 'block';
     
+    // Toon kort een succes bericht
     const resultDetails = document.getElementById('resultDetails');
     resultDetails.innerHTML = `
         <div class="detail-item">
@@ -254,12 +259,17 @@ function showResults(data) {
             <strong>Confidence:</strong> ${data.detection_result.confidence}%
         </div>
         <div class="detail-item">
-            <strong>Fouten:</strong> ${data.validation_result.errors.length}
-        </div>
-        <div class="detail-item">
-            <strong>Waarschuwingen:</strong> ${data.validation_result.warnings.length}
+            <strong>Geldige Rijen:</strong> ${data.validation_result.valid_rows || 0}
         </div>
     `;
+    
+    // Toon upload results kort
+    document.getElementById('uploadResults').style.display = 'block';
+    
+    // Ga automatisch door naar de volgende stap na 1.5 seconde
+    setTimeout(() => {
+        continueToNextStep();
+    }, 1500);
 }
 
 function showError(message) {
@@ -280,18 +290,13 @@ function retryUpload() {
     document.getElementById('fileInput').value = '';
 }
 
-function showPreview() {
-    // Redirect to preview page
-    window.location.href = '{% url "planning_wizard_preview" %}';
-}
-
 function continueToNextStep() {
     // Disable button to prevent double clicks
     const nextBtn = document.querySelector('.btn-primary[onclick="continueToNextStep()"]');
     nextBtn.disabled = true;
     nextBtn.innerHTML = '<span class="btn-icon">⏳</span> Laden...';
     
-    // Save upload data to session and then redirect to preview
+    // Save upload data to session and then redirect to assignment
     fetch('{% url "api_wizard_save_upload_data" %}', {
         method: 'POST',
         headers: {
@@ -303,24 +308,190 @@ function continueToNextStep() {
         })
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Redirect to preview page
-            window.location.href = '{% url "planning_wizard_preview" %}';
-        } else {
-            // Re-enable button on error
-            nextBtn.disabled = false;
-            nextBtn.innerHTML = '<span class="btn-icon">➡️</span> Volgende Stap';
-            showError('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
-        }
-    })
+            .then(data => {
+            if (data.success) {
+                // Redirect to preview step
+                window.location.href = '{% url "planning_wizard_preview" %}';
+            } else {
+                // Re-enable button on error
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = '<span class="btn-icon">👁️</span> Bekijk Preview';
+                showError('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
+            }
+        })
     .catch(error => {
         console.error('Error saving upload data:', error);
         // Re-enable button on error
         nextBtn.disabled = false;
-        nextBtn.innerHTML = '<span class="btn-icon">➡️</span> Volgende Stap';
+        nextBtn.innerHTML = '<span class="btn-icon">👁️</span> Bekijk Preview';
         showError('Fout bij opslaan: ' + error.message);
     });
+}
+
+function showParserDetails(detectionResult, parserConfig) {
+    const parserDetails = document.getElementById('parserDetails');
+    const parserInfo = document.getElementById('parserInfo');
+    
+    if (detectionResult.config_id && parserConfig) {
+        // Admin configuratie gebruikt
+        parserInfo.innerHTML = `
+            <div class="parser-config">
+                <div class="config-item">
+                    <strong>Configuratie ID:</strong> ${detectionResult.config_id}
+                </div>
+                <div class="config-item">
+                    <strong>Configuratie Naam:</strong> ${parserConfig.naam || 'Onbekend'}
+                </div>
+                ${parserConfig.beschrijving ? `
+                    <div class="config-item">
+                        <strong>Beschrijving:</strong> ${parserConfig.beschrijving}
+                    </div>
+                ` : ''}
+                <div class="config-item">
+                    <strong>Gedetecteerd Formaat:</strong> ${detectionResult.detected_format}
+                </div>
+                <div class="config-item">
+                    <strong>Confidence Score:</strong> ${detectionResult.confidence}%
+                </div>
+                <div class="config-item">
+                    <strong>Kolom Mapping:</strong>
+                    <div class="mapping-details">
+                        ${Object.entries(detectionResult.mappings).map(([field, index]) => 
+                            `<span class="mapping-item">${field}: kolom ${index}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+                ${parserConfig.bestandsnaam_patroon ? `
+                    <div class="config-item">
+                        <strong>Bestandsnaam Patroon:</strong> 
+                        <span class="config-value">${parserConfig.bestandsnaam_patroon}</span>
+                    </div>
+                ` : ''}
+                ${parserConfig.header_keywords ? `
+                    <div class="config-item">
+                        <strong>Header Keywords:</strong>
+                        <div class="keywords-list">
+                            ${parserConfig.header_keywords.split(',').map(keyword => 
+                                `<span class="keyword-item">${keyword.trim()}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                ${parserConfig.datum_formaten ? `
+                    <div class="config-item">
+                        <strong>Datum Formaten:</strong>
+                        <div class="formats-list">
+                            ${parserConfig.datum_formaten.split(',').map(format => 
+                                `<span class="format-item">${format.trim()}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                ${parserConfig.tijd_formaten ? `
+                    <div class="config-item">
+                        <strong>Tijd Formaten:</strong>
+                        <div class="formats-list">
+                            ${parserConfig.tijd_formaten.split(',').map(format => 
+                                `<span class="format-item">${format.trim()}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                ${detectionResult.warnings.length > 0 ? `
+                    <div class="config-item">
+                        <strong>Waarschuwingen:</strong>
+                        <div class="warnings-list">
+                            ${detectionResult.warnings.map(warning => `<span class="warning-item">⚠️ ${warning}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        // Fallback detectie gebruikt
+        parserInfo.innerHTML = `
+            <div class="parser-config">
+                <div class="config-item">
+                    <strong>Detectie Methode:</strong> Fallback Auto-detectie
+                </div>
+                <div class="config-item">
+                    <strong>Gedetecteerd Formaat:</strong> ${detectionResult.detected_format}
+                </div>
+                <div class="config-item">
+                    <strong>Confidence Score:</strong> ${detectionResult.confidence}%
+                </div>
+                ${detectionResult.warnings.length > 0 ? `
+                    <div class="config-item">
+                        <strong>Waarschuwingen:</strong>
+                        <div class="warnings-list">
+                            ${detectionResult.warnings.map(warning => `<span class="warning-item">⚠️ ${warning}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    parserDetails.style.display = 'block';
+}
+
+function showDataPreview(csvData) {
+    const dataPreview = document.getElementById('dataPreview');
+    const previewTableBody = document.getElementById('previewTableBody');
+    
+    if (!csvData || csvData.length === 0) {
+        dataPreview.style.display = 'none';
+        return;
+    }
+    
+    // Toon eerste 10 rijen
+    const previewRows = csvData.slice(0, 10);
+    
+    previewTableBody.innerHTML = '';
+    
+    previewRows.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        const rowType = row.type || 'unknown';
+        const rowData = row.data || [];
+        
+        // Bepaal status op basis van type en validatie
+        let status = 'OK';
+        let statusClass = 'status-ok';
+        
+        if (rowType === 'header') {
+            status = 'Header';
+            statusClass = 'status-header';
+        } else if (rowType === 'data') {
+            if (row.validation_errors && row.validation_errors.length > 0) {
+                status = '❌ Fout';
+                statusClass = 'status-error';
+            } else if (row.validation_warnings && row.validation_warnings.length > 0) {
+                status = '⚠️ Waarschuwing';
+                statusClass = 'status-warning';
+            } else {
+                status = '✅ OK';
+                statusClass = 'status-ok';
+            }
+        }
+        
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${rowType}</td>
+            <td class="data-cell">
+                <div class="data-preview-content">
+                    ${rowData.slice(0, 5).map((cell, cellIndex) => 
+                        `<span class="cell-item">${cellIndex}: ${cell || '-'}</span>`
+                    ).join('')}
+                    ${rowData.length > 5 ? `<span class="cell-more">... (+${rowData.length - 5} meer)</span>` : ''}
+                </div>
+            </td>
+            <td><span class="status-badge ${statusClass}">${status}</span></td>
+        `;
+        
+        previewTableBody.appendChild(tr);
+    });
+    
+    dataPreview.style.display = 'block';
 }
 
 function getCookie(name) {
@@ -385,6 +556,10 @@ function getCookie(name) {
     background: #F8CD46;
 }
 
+.progress-step.completed .step-number {
+    background: #28a745;
+}
+
 .step-label {
     font-size: 0.9rem;
     font-weight: 500;
@@ -392,7 +567,7 @@ function getCookie(name) {
 }
 
 .progress-line {
-    width: 100px;
+    width: 80px;
     height: 2px;
     background: #dee2e6;
     margin: 0 1rem;
@@ -542,46 +717,192 @@ function getCookie(name) {
     color: #721c24;
 }
 
-.help-section {
+/* Parser Details Styling */
+.parser-details {
     background: #f8f9fa;
-    padding: 2rem;
+    border: 1px solid #dee2e6;
     border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
 }
 
-.help-section h3 {
-    text-align: center;
-    margin-bottom: 1.5rem;
+.parser-details h4 {
     color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
 }
 
-.tips-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+.parser-config {
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
 }
 
-.tip-card {
+.config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.config-item strong {
+    color: #495057;
+    font-weight: 600;
+}
+
+.mapping-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.mapping-item {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.warnings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.warning-item {
+    color: #856404;
+    background: #fff3cd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.config-value {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.keywords-list,
+.formats-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.keyword-item,
+.format-item {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+/* Data Preview Styling */
+.data-preview {
     background: white;
-    padding: 1rem;
-    border-radius: 8px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
 }
 
-.tip-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.tip-card h4 {
-    margin-bottom: 0.5rem;
+.data-preview h4 {
     color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
 }
 
-.tip-card p {
-    font-size: 0.9rem;
-    color: #6c757d;
+.preview-table-container {
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
 }
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.preview-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.data-cell {
+    max-width: 300px;
+}
+
+.data-preview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.cell-item {
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.cell-more {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    display: inline-block;
+    min-width: 80px;
+}
+
+.status-ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-header {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+
 
 .btn {
     display: inline-flex;
@@ -635,9 +956,7 @@ function getCookie(name) {
         flex-direction: column;
     }
     
-    .tips-grid {
-        grid-template-columns: 1fr;
-    }
+
 }
 </style>
 {% endblock %}

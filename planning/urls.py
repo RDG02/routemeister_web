@@ -54,8 +54,8 @@ urlpatterns = [
     path('vehicles-overview/', views.vehicles_overview, name='vehicles_overview'),
     path('timeslots-overview/', views.timeslots_overview, name='timeslots_overview'),
 
-    # Nieuwe Planning Wizard URLs
-    path('wizard/', views.planning_wizard_start, name='planning_wizard_start'),
+    # Nieuwe Planning Wizard URLs (Geoptimaliseerd - 3 stappen)
+    path('wizard/', views.planning_wizard_upload, name='planning_wizard_start'),
     path('wizard/upload/', views.planning_wizard_upload, name='planning_wizard_upload'),
     path('wizard/preview/', views.planning_wizard_preview, name='planning_wizard_preview'),
     path('wizard/assignment/', views.planning_wizard_assignment, name='planning_wizard_assignment'),
@@ -67,6 +67,7 @@ urlpatterns = [
     path('api/wizard/constraints/', views.api_wizard_constraints, name='api_wizard_constraints'),
     path('api/wizard/auto-assign/', views.api_wizard_auto_assign, name='api_wizard_auto_assign'),
     path('api/wizard/generate-routes/', views.api_wizard_generate_routes, name='api_wizard_generate_routes'),
+    path('api/generate-routes/', views.api_generate_routes, name='api_generate_routes'),
     path('api/wizard/save-planning/', views.api_wizard_save_planning, name='api_wizard_save_planning'),
     path('api/update-patient-assignment/', views.api_update_patient_assignment, name='api_update_patient_assignment'),
 

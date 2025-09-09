@@ -378,7 +378,7 @@
     <div class="main-content">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h1 class="dashboard-title">Dashboard</h1>
-            <a href="{% url 'planning_wizard_start' %}" class="new-planning-btn">
+            <a href="{% url 'planning_wizard_upload' %}" class="new-planning-btn">
                 Nieuwe Planning
             </a>
         </div>
@@ -460,7 +460,7 @@
                         <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
                         <div style="font-size: 18px; margin-bottom: 8px; color: #374151;">Geen planning actief</div>
                         <div style="font-size: 14px; margin-bottom: 20px;">Er is geen planning gemaakt voor vandaag</div>
-                        <a href="/wizard/" style="display: inline-block; background: #3B82F6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                        <a href="{% url 'planning_wizard_upload' %}" style="display: inline-block; background: #3B82F6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">
                             Nieuwe Planning Maken
                         </a>
                                      </div>
@@ -497,7 +497,7 @@
                 <h3>Geen planning actief voor vandaag</h3>
                 <p>Er is nog geen planning gemaakt voor {{ today_date|date:"d M Y" }}. Start een nieuwe planning om patiënten toe te wijzen aan voertuigen.</p>
                 <div class="no-planning-actions">
-                    <a href="{% url 'planning_wizard_start' %}" class="new-planning-btn-large">
+                    <a href="{% url 'planning_wizard_upload' %}" class="new-planning-btn-large">
                         <span>+</span>
                         Nieuwe Planning Maken
                     </a>

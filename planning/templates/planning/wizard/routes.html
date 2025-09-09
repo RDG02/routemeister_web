@@ -4,179 +4,728 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-<div class="wizard-container">
-    <!-- Progress Bar -->
-    <div class="wizard-progress">
-        <div class="progress-step">
-            <div class="step-number">1</div>
-            <div class="step-label">Upload & Preview</div>
-        </div>
-        <div class="progress-line"></div>
-        <div class="progress-step active">
-            <div class="step-number">2</div>
-            <div class="step-label">Toewijzing & Routes</div>
-        </div>
+<div class="routes-container">
+    <!-- Header -->
+    <div class="routes-header">
+        <h1>🗺️ Route Planning & Optimalisatie</h1>
+        <p class="header-description">
+            Sleep patiënten tussen voertuigen en pas de volgorde aan voor optimale routes
+        </p>
     </div>
 
-    <!-- Routes Section -->
-    <div class="routes-section">
-        <h1>🗺️ Route Resultaten</h1>
-        <p class="section-description">
-            Bekijk de gegenereerde routes en sla de planning op in het systeem.
-        </p>
+    <!-- Timeline Tracker -->
+    <div class="timeline-section">
+        <div class="timeline-date">{{ "today"|date:"M d, Y" }}</div>
+        <div class="timeline-track">
+            {% for timeslot in timeslots %}
+            <div class="timeline-segment" 
+                 data-time="{{ timeslot.aankomst_tijd|time:'H:i' }}" 
+                 data-timeslot-id="{{ timeslot.id }}"
+                 data-timeslot-type="{{ timeslot.tijdblok_type }}"
+                 onclick="filterByTimeslot('{{ timeslot.aankomst_tijd|time:'H:i' }}', '{{ timeslot.id }}', '{{ timeslot.tijdblok_type }}')">
+                {{ timeslot.aankomst_tijd|time:'H:i' }}
+                <span style="font-size: 10px; display: block;">
+                    {% if timeslot.tijdblok_type == 'halen' %}
+                        🚐
+                    {% else %}
+                        🏠
+                    {% endif %}
+                </span>
+                        </div>
+            {% endfor %}
+            <div class="timeline-cursor"></div>
+                        </div>
+        <div class="timeline-controls">
+            <button class="clear-filter-btn" onclick="clearTimeFilter()">Toon Alles</button>
+                        </div>
+                        </div>
 
-        <!-- Route Summary -->
-        <div class="route-summary">
-            <div class="summary-card">
-                <div class="summary-icon">📊</div>
-                <div class="summary-content">
-                    <h3>Planning Overzicht</h3>
-                    <div class="summary-stats">
-                        <div class="stat-item">
-                            <span class="stat-label">Routes:</span>
-                            <span class="stat-value">5</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Totaal Afstand:</span>
-                            <span class="stat-value">150 km</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Totaal Tijd:</span>
-                            <span class="stat-value">3 uur</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Geschatte Kosten:</span>
-                            <span class="stat-value">€75</span>
-                        </div>
-                    </div>
-                </div>
+    <!-- Main Content: Two Column Layout -->
+    <div class="main-content">
+        <!-- Left Column: Vehicle Cards -->
+        <div class="left-column">
+            <div class="vehicle-cards-container">
+                <div class="vehicle-cards-header">
+                    <h3>🚐 Voertuig Routes</h3>
+                    <div class="vehicle-controls">
+                        <button class="btn btn-outline" onclick="optimizeRoutes()">
+                            <span class="btn-icon">⚡</span>
+                            Auto-Optimaliseer
+                        </button>
+                        <button class="btn btn-outline" onclick="resetRoutes()">
+                            <span class="btn-icon">🔄</span>
+                            Reset
+                        </button>
             </div>
         </div>
 
-        <!-- Route List -->
-        <div class="route-list">
-            <h3>🚐 Route Details</h3>
-            
-            <div class="route-item">
-                <div class="route-header">
-                    <div class="route-info">
-                        <h4>Route 1 - Voertuig A</h4>
-                        <p>5 patiënten • 45 km • 1.2 uur</p>
+                <div class="vehicle-cards-list" id="vehicleCardsList">
+                    <!-- Vehicle cards will be populated by JavaScript based on selected timeslot -->
+                    <div class="no-timeslot-selected">
+                        <span class="no-timeslot-icon">⏰</span>
+                        <span class="no-timeslot-text">Klik op een tijdsblok om routes te bekijken</span>
                     </div>
-                    <div class="route-status success">✅ Voltooid</div>
                 </div>
-                <div class="route-stops">
-                    <div class="stop-item depot">
-                        <span class="stop-icon">🏢</span>
-                        <span class="stop-text">Depot</span>
-                    </div>
-                    <div class="stop-item patient">
-                        <span class="stop-icon">👤</span>
-                        <span class="stop-text">Patiënt 1 - 08:30</span>
-                    </div>
-                    <div class="stop-item patient">
-                        <span class="stop-icon">👤</span>
-                        <span class="stop-text">Patiënt 2 - 09:15</span>
-                    </div>
-                    <div class="stop-item patient">
-                        <span class="stop-icon">👤</span>
-                        <span class="stop-text">Patiënt 3 - 10:00</span>
-                    </div>
-                    <div class="stop-item depot">
-                        <span class="stop-icon">🏢</span>
-                        <span class="stop-text">Depot</span>
-                    </div>
                 </div>
             </div>
 
-            <div class="route-item">
-                <div class="route-header">
-                    <div class="route-info">
-                        <h4>Route 2 - Voertuig B</h4>
-                        <p>3 patiënten • 32 km • 0.8 uur</p>
-                    </div>
-                    <div class="route-status success">✅ Voltooid</div>
-                </div>
-                <div class="route-stops">
-                    <div class="stop-item depot">
-                        <span class="stop-icon">🏢</span>
-                        <span class="stop-text">Depot</span>
-                    </div>
-                    <div class="stop-item patient">
-                        <span class="stop-icon">👤</span>
-                        <span class="stop-text">Patiënt 4 - 08:45</span>
-                    </div>
-                    <div class="stop-item patient">
-                        <span class="stop-icon">👤</span>
-                        <span class="stop-text">Patiënt 5 - 09:30</span>
-                    </div>
-                    <div class="stop-item depot">
-                        <span class="stop-icon">🏢</span>
-                        <span class="stop-text">Depot</span>
+        <!-- Right Column: Google Maps -->
+        <div class="right-column">
+            <div class="map-container">
+                <div class="map-header">
+                    <h3>🗺️ Route Kaart</h3>
+                    <div class="map-controls">
+                        <button class="btn btn-primary" onclick="showAllRoutes()">
+                            <span class="btn-icon">🌍</span>
+                            Toon Alle Routes
+                        </button>
+                        <button class="btn btn-secondary" onclick="centerOnDepot()">
+                            <span class="btn-icon">🏢</span>
+                            Centreren op Depot
+                        </button>
                     </div>
                 </div>
+                <div id="googleMap" class="google-map-container">
+                    <!-- Google Maps wordt hier geladen -->
+                    </div>
+                    </div>
             </div>
         </div>
 
-        <!-- Save Planning -->
-        <div class="save-planning">
-            <div class="save-card">
-                <div class="save-icon">💾</div>
-                <div class="save-content">
-                    <h3>Planning Opslaan</h3>
-                    <p>Sla deze planning op in het systeem zodat deze beschikbaar is voor chauffeurs en beheer.</p>
-                    
-                    <div class="save-options">
-                        <label class="option-item">
-                            <input type="checkbox" checked>
-                            <span class="option-text">Planning publiceren voor chauffeurs</span>
-                        </label>
-                        <label class="option-item">
-                            <input type="checkbox" checked>
-                            <span class="option-text">Exporteer routes naar PDF</span>
-                        </label>
-                        <label class="option-item">
-                            <input type="checkbox">
-                            <span class="option-text">Stuur notificatie naar team</span>
-                        </label>
-                    </div>
-                    
-                    <button class="btn btn-primary" onclick="savePlanning()">
-                        <span class="btn-icon">💾</span>
-                        Planning Opslaan
-                    </button>
-                </div>
+    <!-- Unassigned Patients -->
+    <div class="unassigned-section" id="unassignedSection" style="display: none;">
+        <h3>👥 Niet-toegewezen Patiënten</h3>
+        <div class="unassigned-grid" id="unassignedGrid">
+            <!-- Unassigned patients will be populated by JavaScript -->
             </div>
         </div>
 
         <!-- Action Buttons -->
+    <div class="action-section">
         <div class="action-buttons">
             <button class="btn btn-secondary" onclick="goBack()">
                 <span class="btn-icon">⬅️</span>
-                Terug
+                Terug naar Assignment
             </button>
-            <button class="btn btn-primary" onclick="viewPlanning()">
-                <span class="btn-icon">👁️</span>
-                Bekijk Planning
+            <button class="btn btn-warning" onclick="saveChanges()">
+                <span class="btn-icon">💾</span>
+                Opslaan
+            </button>
+            <button class="btn btn-primary" onclick="sendToDrivers()">
+                <span class="btn-icon">📤</span>
+                Verstuur naar Chauffeurs
             </button>
         </div>
     </div>
 </div>
 
+<!-- Hidden Data for JavaScript -->
+<script id="routes-data" type="application/json">
+{
+    "patients": [
+        {% for patient in patients_data %}
+        {
+            "id": "{{ patient.id }}",
+            "naam": "{{ patient.naam }}",
+            "adres": "{{ patient.adres }}",
+            "ophaal_tijd": "{{ patient.ophaal_tijd }}",
+            "eind_tijd": "{{ patient.eind_behandel_tijd }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ],
+    "vehicles": [
+        {% for vehicle in available_vehicles %}
+        {
+            "id": {{ vehicle.id }},
+            "referentie": "{{ vehicle.referentie }}",
+            "merk_model": "{{ vehicle.merk_model }}",
+            "kleur": "{{ vehicle.kleur }}",
+            "capaciteit": {{ vehicle.aantal_plaatsen }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ],
+    "timeslots": [
+        {% for timeslot in active_timeslots %}
+        {
+            "id": {{ timeslot.id }},
+            "tijd": "{{ timeslot.aankomst_tijd|time:'H:i' }}",
+            "type": "{{ timeslot.tijdblok_type }}",
+            "naam": "{{ timeslot.naam }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+}
+</script>
+
 <script>
-function savePlanning() {
-    const saveBtn = document.querySelector('.save-planning .btn');
-    saveBtn.innerHTML = '<span class="btn-icon">⏳</span> Opslaan...';
-    saveBtn.disabled = true;
+// Global variables
+let routesData = {{ route_data|safe }};
+let routesByTimeslot = JSON.parse('{{ routes_by_timeslot|escapejs }}');
+let draggedPatient = null;
+let currentAssignments = {};
+let currentTimeslotId = null;
+
+// Initialize the interface
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Routes page loaded');
+    console.log('Routes by timeslot:', routesByTimeslot);
+    console.log('Routes by timeslot type:', typeof routesByTimeslot);
+    console.log('Routes by timeslot keys:', Object.keys(routesByTimeslot || {}));
     
-    // Simulate save process
-    setTimeout(() => {
-        saveBtn.innerHTML = '<span class="btn-icon">✅</span> Opgeslagen!';
-        saveBtn.style.background = '#28a745';
+    // Initialize Google Maps first
+    initGoogleMaps();
+    
+    // Show first timeslot by default if available
+    const timeslots = JSON.parse('{{ timeslots_data|escapejs }}');
+    console.log('Timeslots data:', timeslots);
+    
+    if (timeslots && timeslots.length > 0) {
+        const firstTimeslot = timeslots[0];
+        console.log('First timeslot:', firstTimeslot);
+        filterByTimeslot(firstTimeslot.aankomst_tijd, firstTimeslot.id, firstTimeslot.tijdblok_type);
+    }
+    
+    // Initialize drag and drop
+    initializeDragDrop();
+});
+
+// Drag and Drop functionality
+function initializeDragDrop() {
+    // Make patient items draggable
+    const patientItems = document.querySelectorAll('.patient-item');
+    patientItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Make vehicle patient lists droppable
+    const dropZones = document.querySelectorAll('.vehicle-patients-list');
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('drop', handleDrop);
+        zone.addEventListener('dragenter', handleDragEnter);
+        zone.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function handleDragStart(e) {
+    draggedPatient = e.target;
+    e.target.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+}
+
+function handleDragEnd(e) {
+    e.target.style.opacity = '1';
+    draggedPatient = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    e.target.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.target.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.target.classList.remove('drag-over');
+    
+    if (!draggedPatient) return;
+    
+    const vehicleId = e.target.dataset.vehicleId;
+    const dropZone = e.target;
+    
+    // Remove empty vehicle message if it exists
+    const emptyVehicle = dropZone.querySelector('.empty-vehicle');
+    if (emptyVehicle) {
+        emptyVehicle.remove();
+    }
+    
+    // Clone the patient item for the vehicle
+    const patientClone = draggedPatient.cloneNode(true);
+    patientClone.classList.remove('draggable');
+    patientClone.draggable = false;
+    patientClone.style.opacity = '1';
+    
+    // Add remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-patient';
+    removeBtn.innerHTML = '❌';
+    removeBtn.onclick = () => removePatientFromVehicle(patientClone, vehicleId);
+    patientClone.appendChild(removeBtn);
+    
+    // Add to vehicle
+    dropZone.appendChild(patientClone);
+    
+    // Remove from unassigned
+    draggedPatient.remove();
+    
+    // Update counts
+    updateVehicleCounts();
+    
+    // Store assignment
+    const patientId = draggedPatient.dataset.patientId;
+    if (!currentAssignments[vehicleId]) {
+        currentAssignments[vehicleId] = [];
+    }
+    currentAssignments[vehicleId].push(patientId);
+    
+    console.log(`Patient ${patientId} assigned to vehicle ${vehicleId}`);
+}
+
+function removePatientFromVehicle(removeButton, vehicleId) {
+    // Find the patient item that contains this remove button
+    const patientItem = removeButton.closest('.patient-item');
+    const patientId = patientItem.dataset.patientId;
+    const patientName = patientItem.dataset.patientName;
+    const patientTimes = patientItem.dataset.patientTimes;
+    const patientAddress = patientItem.dataset.patientAddress;
+    
+    // Remove from vehicle
+    patientItem.remove();
+    
+    // Add back to unassigned
+    const unassignedGrid = document.getElementById('unassignedGrid');
+    const newPatientItem = createPatientItem({
+        id: patientId,
+        naam: patientName,
+        ophaal_tijd: patientTimes.split('/')[0],
+        eind_tijd: patientTimes.split('/')[1],
+        adres: patientAddress
+    });
+    
+    unassignedGrid.appendChild(newPatientItem);
+    
+    // Update assignments
+    if (currentAssignments[vehicleId]) {
+        currentAssignments[vehicleId] = currentAssignments[vehicleId].filter(id => id !== patientId);
+    }
+    
+    // Update counts
+    updateVehicleCounts();
+    
+    console.log(`Patient ${patientId} removed from vehicle ${vehicleId}`);
+}
+
+function createVehicleCard(assignment) {
+    const vehicle = assignment.vehicle;
+    const patients = assignment.patients;
+    
+    const card = document.createElement('div');
+    card.className = 'vehicle-card';
+    card.dataset.vehicleId = vehicle.id;
+    card.dataset.vehicleColor = vehicle.kleur;
+    
+    card.innerHTML = `
+        <div class="vehicle-card-header" style="background-color: ${vehicle.kleur}; color: white;">
+            <div class="vehicle-code">${vehicle.naam}</div>
+            <div class="vehicle-info">${vehicle.type}</div>
+        </div>
         
-        // Show success message
-        showSuccessMessage('Planning succesvol opgeslagen!');
-    }, 2000);
+        <div class="vehicle-patients-list" data-vehicle-id="${vehicle.id}">
+            ${patients.map(patient => `
+                <div class="patient-item draggable" 
+                     data-patient-id="${patient.id}" 
+                     data-patient-name="${patient.naam}" 
+                     data-patient-times="${patient.ophaal_tijd}/${patient.eind_behandel_tijd}" 
+                     data-patient-address="${patient.adres}" 
+                     draggable="true">
+                    <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
+                    <div class="patient-address">${patient.adres}</div>
+                    <div class="patient-status">
+                        <span class="car-icon">🚗</span>
+                        <span class="status-text">Toegewezen</span>
+                    </div>
+                    <button class="remove-patient" onclick="removePatientFromVehicle(this, '${vehicle.id}')">❌</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    return card;
+}
+
+function createPatientItem(patient) {
+    if (!patient) return null;
+    
+    const item = document.createElement('div');
+    item.className = 'patient-item draggable';
+    item.dataset.patientId = patient.id;
+    item.dataset.patientName = patient.naam;
+    item.dataset.patientTimes = `${patient.ophaal_tijd}/${patient.eind_behandel_tijd}`;
+    item.dataset.patientAddress = patient.adres;
+    item.draggable = true;
+    
+    item.innerHTML = `
+        <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
+        <div class="patient-address">${patient.adres}</div>
+        <div class="patient-status">
+            <span class="car-icon">🚗</span>
+            <span class="status-text">Niet toegewezen</span>
+        </div>
+    `;
+    
+    // Re-add drag event listeners
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragend', handleDragEnd);
+    
+    return item;
+}
+
+function updateVehicleCounts() {
+    const vehicles = document.querySelectorAll('.vehicle-card');
+    vehicles.forEach(vehicle => {
+        const vehicleId = vehicle.dataset.vehicleId;
+        const patientCount = vehicle.querySelectorAll('.patient-item').length;
+        const countElement = document.getElementById(`count-${vehicleId}`);
+        if (countElement) {
+            countElement.textContent = patientCount;
+        }
+    });
+}
+
+function removePatientFromVehicle(button, vehicleId) {
+    const patientItem = button.closest('.patient-item');
+    const patientId = patientItem.dataset.patientId;
+    const patientName = patientItem.dataset.patientName;
+    const patientTimes = patientItem.dataset.patientTimes;
+    const patientAddress = patientItem.dataset.patientAddress;
+    
+    // Remove from vehicle
+    patientItem.remove();
+    
+    // Add back to unassigned
+    const unassignedGrid = document.getElementById('unassignedGrid');
+    const newPatientItem = createPatientItem({
+        id: patientId,
+        naam: patientName,
+        ophaal_tijd: patientTimes.split('/')[0],
+        eind_tijd: patientTimes.split('/')[1],
+        adres: patientAddress
+    });
+    
+    unassignedGrid.appendChild(newPatientItem);
+    
+    // Update counts
+    updateVehicleCounts();
+    
+    // Remove from assignments
+    if (currentAssignments[vehicleId]) {
+        currentAssignments[vehicleId] = currentAssignments[vehicleId].filter(id => id !== patientId);
+    }
+}
+
+// Route optimization using Django admin settings
+function optimizeRoutes() {
+    console.log('🚀 Starting intelligent route optimization...');
+    
+    const unassignedPatients = document.querySelectorAll('#unassignedGrid .patient-item');
+    const vehicles = document.querySelectorAll('.vehicle-card');
+    
+    if (unassignedPatients.length === 0) {
+        alert('Alle patiënten zijn al toegewezen!');
+        return;
+    }
+    
+    // Get optimization settings from Django admin
+    const optimizationSettings = getOptimizationSettings();
+    console.log('📊 Using optimization settings:', optimizationSettings);
+    
+    // Apply optimization strategy
+    switch(optimizationSettings.strategy) {
+        case 'max_capacity':
+            optimizeForMaxCapacity(unassignedPatients, vehicles);
+            break;
+        case 'balanced':
+            optimizeForBalanced(unassignedPatients, vehicles);
+            break;
+        case 'min_vehicles':
+            optimizeForMinVehicles(unassignedPatients, vehicles);
+            break;
+        case 'hybrid':
+        default:
+            optimizeHybrid(unassignedPatients, vehicles, optimizationSettings);
+            break;
+    }
+    
+    updateVehicleCounts();
+    showSuccessMessage(`Routes geoptimaliseerd met ${optimizationSettings.strategy} strategie!`);
+}
+
+function getOptimizationSettings() {
+    // Get settings from Django admin via template context
+    {% if google_maps_config %}
+    return {
+        strategy: '{{ google_maps_config.vehicle_optimization }}',
+        distance_weight: {{ google_maps_config.distance_weight }},
+        time_weight: {{ google_maps_config.time_weight }},
+        vehicle_utilization_weight: {{ google_maps_config.vehicle_utilization_weight }},
+        enabled: {{ google_maps_config.enabled|yesno:"true,false" }},
+        api_key: '{{ google_maps_config.api_key }}',
+        daily_limit: {{ google_maps_config.daily_api_limit }},
+        monthly_limit: {{ google_maps_config.monthly_api_limit }}
+    };
+    {% else %}
+    // Fallback settings if no config found
+    return {
+        strategy: 'hybrid',
+        distance_weight: 70,
+        time_weight: 30,
+        vehicle_utilization_weight: 50,
+        enabled: false,
+        api_key: '',
+        daily_limit: 1000,
+        monthly_limit: 25000
+    };
+    {% endif %}
+}
+
+function optimizeForMaxCapacity(unassignedPatients, vehicles) {
+    console.log('📦 Optimizing for maximum capacity...');
+    
+    // Fill vehicles to capacity before moving to next
+    const vehicleCapacities = Array.from(vehicles).map(v => parseInt(v.dataset.vehicleCapacity) || 8);
+    const vehicleCounts = new Array(vehicles.length).fill(0);
+    
+    unassignedPatients.forEach((patient, index) => {
+        // Find vehicle with most available capacity
+        let bestVehicleIndex = 0;
+        let bestCapacity = vehicleCapacities[0] - vehicleCounts[0];
+        
+        for (let i = 1; i < vehicles.length; i++) {
+            const availableCapacity = vehicleCapacities[i] - vehicleCounts[i];
+            if (availableCapacity > bestCapacity) {
+                bestVehicleIndex = i;
+                bestCapacity = availableCapacity;
+            }
+        }
+        
+        assignPatientToVehicle(patient, vehicles[bestVehicleIndex]);
+        vehicleCounts[bestVehicleIndex]++;
+    });
+}
+
+function optimizeForBalanced(unassignedPatients, vehicles) {
+    console.log('⚖️ Optimizing for balanced distribution...');
+    
+    const patientsPerVehicle = Math.ceil(unassignedPatients.length / vehicles.length);
+    let currentVehicleIndex = 0;
+    let currentVehicleCount = 0;
+    
+    unassignedPatients.forEach((patient, index) => {
+        if (currentVehicleCount >= patientsPerVehicle) {
+            currentVehicleIndex = (currentVehicleIndex + 1) % vehicles.length;
+            currentVehicleCount = 0;
+        }
+        
+        assignPatientToVehicle(patient, vehicles[currentVehicleIndex]);
+        currentVehicleCount++;
+    });
+}
+
+function optimizeForMinVehicles(unassignedPatients, vehicles) {
+    console.log('🚐 Optimizing for minimum vehicles...');
+    
+    // Use as few vehicles as possible
+    const vehicleCapacities = Array.from(vehicles).map(v => parseInt(v.dataset.vehicleCapacity) || 8);
+    let currentVehicleIndex = 0;
+    let currentVehicleCount = 0;
+    
+    unassignedPatients.forEach((patient, index) => {
+        // If current vehicle is full, move to next
+        if (currentVehicleCount >= vehicleCapacities[currentVehicleIndex]) {
+            currentVehicleIndex++;
+            currentVehicleCount = 0;
+        }
+        
+        if (currentVehicleIndex < vehicles.length) {
+            assignPatientToVehicle(patient, vehicles[currentVehicleIndex]);
+            currentVehicleCount++;
+        }
+    });
+}
+
+function optimizeHybrid(unassignedPatients, vehicles, settings) {
+    console.log('🎯 Optimizing with hybrid approach...');
+    
+    // Combine multiple strategies based on weights
+    const totalWeight = settings.distance_weight + settings.time_weight + settings.vehicle_utilization_weight;
+    const distanceRatio = settings.distance_weight / totalWeight;
+    const timeRatio = settings.time_weight / totalWeight;
+    const utilizationRatio = settings.vehicle_utilization_weight / totalWeight;
+    
+    console.log(`📊 Weight ratios - Distance: ${distanceRatio.toFixed(2)}, Time: ${timeRatio.toFixed(2)}, Utilization: ${utilizationRatio.toFixed(2)}`);
+    
+    // Group patients by time slots for better route efficiency
+    const patientsByTime = groupPatientsByTimeSlots(unassignedPatients);
+    
+    // Assign patients considering all factors
+    let vehicleIndex = 0;
+    const vehicleCounts = new Array(vehicles.length).fill(0);
+    
+    Object.keys(patientsByTime).sort().forEach(timeSlot => {
+        const patientsInSlot = patientsByTime[timeSlot];
+        
+        patientsInSlot.forEach(patient => {
+            // Find best vehicle considering all factors
+            const bestVehicleIndex = findBestVehicleForPatient(patient, vehicles, vehicleCounts, settings);
+            assignPatientToVehicle(patient, vehicles[bestVehicleIndex]);
+            vehicleCounts[bestVehicleIndex]++;
+        });
+    });
+}
+
+function groupPatientsByTimeSlots(patients) {
+    const groups = {};
+    
+    patients.forEach(patient => {
+        const pickupTime = patient.dataset.patientTimes.split('/')[0];
+        const timeSlot = getTimeSlot(pickupTime);
+        
+        if (!groups[timeSlot]) {
+            groups[timeSlot] = [];
+        }
+        groups[timeSlot].push(patient);
+    });
+    
+    return groups;
+}
+
+function getTimeSlot(time) {
+    // Convert time to time slot (e.g., 08:45 -> 08:00-09:00)
+    const hour = parseInt(time.split(':')[0]);
+    return `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+}
+
+function findBestVehicleForPatient(patient, vehicles, vehicleCounts, settings) {
+    let bestIndex = 0;
+    let bestScore = -1;
+    
+    vehicles.forEach((vehicle, index) => {
+        const capacity = parseInt(vehicle.dataset.vehicleCapacity) || 8;
+        const currentCount = vehicleCounts[index];
+        
+        // Calculate score based on weights
+        const capacityScore = (capacity - currentCount) / capacity; // Higher is better
+        const utilizationScore = currentCount / capacity; // Balance utilization
+        const timeScore = 1; // Could be enhanced with actual time calculations
+        
+        const totalScore = (capacityScore * settings.vehicle_utilization_weight / 100) +
+                          (utilizationScore * settings.distance_weight / 100) +
+                          (timeScore * settings.time_weight / 100);
+        
+        if (totalScore > bestScore && currentCount < capacity) {
+            bestScore = totalScore;
+            bestIndex = index;
+        }
+    });
+    
+    return bestIndex;
+}
+
+function assignPatientToVehicle(patient, vehicle) {
+    const dropZone = vehicle.querySelector('.vehicle-patients-list');
+    
+    // Clone patient for vehicle
+    const patientClone = patient.cloneNode(true);
+    patientClone.classList.remove('draggable');
+    patientClone.draggable = false;
+    
+    // Add remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-patient';
+    removeBtn.innerHTML = '❌';
+    removeBtn.onclick = () => removePatientFromVehicle(patientClone, vehicle.dataset.vehicleId);
+    patientClone.appendChild(removeBtn);
+    
+    // Remove empty vehicle message if exists
+    const emptyVehicle = dropZone.querySelector('.empty-vehicle');
+    if (emptyVehicle) {
+        emptyVehicle.remove();
+    }
+    
+    // Add to vehicle
+    dropZone.appendChild(patientClone);
+    
+    // Remove from unassigned
+    patient.remove();
+    
+    // Store assignment
+    const patientId = patient.dataset.patientId;
+    if (!currentAssignments[vehicle.dataset.vehicleId]) {
+        currentAssignments[vehicle.dataset.vehicleId] = [];
+    }
+    currentAssignments[vehicle.dataset.vehicleId].push(patientId);
+}
+
+function resetRoutes() {
+    if (confirm('Weet je zeker dat je alle toewijzingen wilt resetten?')) {
+        // Move all assigned patients back to unassigned
+        const assignedPatients = document.querySelectorAll('.vehicle-card .patient-item');
+        const unassignedGrid = document.getElementById('unassignedGrid');
+        
+        assignedPatients.forEach(patient => {
+            const originalItem = createPatientItem({
+                id: patient.dataset.patientId,
+                naam: patient.dataset.patientName,
+                ophaal_tijd: patient.dataset.patientTimes.split('/')[0],
+                eind_tijd: patient.dataset.patientTimes.split('/')[1],
+                adres: patient.dataset.patientAddress
+            });
+            if (originalItem) {
+                unassignedGrid.appendChild(originalItem);
+            }
+            patient.remove();
+        });
+        
+        // Restore empty vehicle messages
+        const dropZones = document.querySelectorAll('.vehicle-patients-list');
+        dropZones.forEach(zone => {
+            if (zone.children.length === 0) {
+                const emptyVehicle = document.createElement('div');
+                emptyVehicle.className = 'empty-vehicle';
+                emptyVehicle.innerHTML = `
+                    <span class="empty-icon">👥</span>
+                    <span class="empty-text">Geen patiënten toegewezen</span>
+                `;
+                zone.appendChild(emptyVehicle);
+            }
+        });
+        
+        currentAssignments = {};
+        updateVehicleCounts();
+        showSuccessMessage('Routes gereset!');
+    }
+}
+
+// Save and send functions
+function saveChanges() {
+    console.log('💾 Saving route changes...', currentAssignments);
+    
+    // Here you would send the assignments to the server
+    showSuccessMessage('Wijzigingen opgeslagen!');
+}
+
+function sendToDrivers() {
+    if (Object.keys(currentAssignments).length === 0) {
+        alert('Geen patiënten toegewezen aan voertuigen!');
+        return;
+    }
+    
+    if (confirm('Weet je zeker dat je de planning wilt versturen naar de chauffeurs?')) {
+        console.log('📤 Sending to drivers...', currentAssignments);
+        
+        // Here you would send the final assignments to drivers
+        showSuccessMessage('Planning verstuurd naar chauffeurs!');
+    }
 }
 
 function showSuccessMessage(message) {
@@ -191,7 +740,6 @@ function showSuccessMessage(message) {
     
     document.body.appendChild(successDiv);
     
-    // Auto-remove after 3 seconds
     setTimeout(() => {
         successDiv.remove();
     }, 3000);
@@ -200,259 +748,396 @@ function showSuccessMessage(message) {
 function goBack() {
     window.location.href = '{% url "planning_wizard_assignment" %}';
 }
-
-function viewPlanning() {
-    // Redirect to planning overview
-    window.location.href = '{% url "concept_planning" %}';
-}
 </script>
 
 <style>
-.wizard-container {
-    max-width: 1200px;
+.routes-container {
+    max-width: 1400px;
     margin: 0 auto;
     padding: 2rem;
 }
 
-.wizard-progress {
+.routes-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.routes-header h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.header-description {
+    font-size: 1.1rem;
+    color: #6c757d;
+}
+
+/* Timeline Section */
+.timeline-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
+
+.timeline-date {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.timeline-track {
+    background: #343a40;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-segment {
+    flex: 1;
+    background: #495057;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 3rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 12px;
+    color: #e9ecef;
+    font-size: 14px;
+    font-weight: 600;
+    border-right: 1px solid #343a40;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
-.progress-step {
+.timeline-segment:hover {
+    background: #ffc107;
+    color: #343a40;
+    transform: translateY(-2px);
+}
+
+.timeline-segment.active {
+    background: #ffc107;
+    color: #343a40;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.timeline-segment:last-child {
+    border-right: none;
+}
+
+.timeline-cursor {
+    position: absolute;
+    top: -6px;
+    left: 16.67%;
+    width: 4px;
+    height: 52px;
+    background: #ffc107;
+    border-radius: 2px;
+    z-index: 10;
+}
+
+.timeline-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.clear-filter-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.clear-filter-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+/* Main Content: Two Column Layout */
+.main-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+/* Left Column: Vehicle Cards */
+.left-column {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.vehicle-cards-container {
+    height: 100%;
+}
+
+.vehicle-cards-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.vehicle-cards-header h3 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.vehicle-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.vehicle-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.vehicle-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.vehicle-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.vehicle-card-header {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.vehicle-code {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.vehicle-info {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.vehicle-patients-list {
+    padding: 1rem;
+    min-height: 100px;
+}
+
+.patient-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: move;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.patient-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.patient-item.draggable {
+    cursor: grab;
+}
+
+.patient-item.draggable:active {
+    cursor: grabbing;
+}
+
+.patient-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.patient-address {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.patient-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.car-icon {
+    font-size: 1rem;
+}
+
+.status-text {
+    font-weight: 500;
+}
+
+.remove-patient {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-patient:hover {
+    background: #c82333;
+}
+
+.empty-vehicle {
     display: flex;
     flex-direction: column;
     align-items: center;
-    opacity: 0.5;
-    transition: opacity 0.3s;
+    justify-content: center;
+    height: 100px;
+    color: #6c757d;
 }
 
-.progress-step.active {
-    opacity: 1;
+.empty-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
 }
 
-.step-number {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #6c757d;
-    color: white;
+.empty-text {
+    font-size: 0.9rem;
+}
+
+.no-timeslot-selected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #6c757d;
+    background: white;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+.no-timeslot-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.no-timeslot-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.empty-timeslot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+    color: #6c757d;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+/* Right Column: Google Maps */
+.right-column {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.map-container {
+    height: 100%;
+}
+
+.map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.map-header h3 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.map-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.google-map-container {
+    height: 500px;
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-}
-
-.progress-step.active .step-number {
-    background: #F8CD46;
-}
-
-.step-label {
-    font-size: 0.9rem;
-    font-weight: 500;
     color: #6c757d;
-}
-
-.progress-line {
-    width: 100px;
-    height: 2px;
-    background: #dee2e6;
-    margin: 0 1rem;
-}
-
-.routes-section {
-    margin-bottom: 3rem;
-}
-
-.routes-section h1 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    color: #2c3e50;
-    text-align: center;
-}
-
-.section-description {
     font-size: 1.1rem;
-    color: #6c757d;
-    margin-bottom: 2rem;
-    text-align: center;
 }
 
-.route-summary {
-    margin-bottom: 2rem;
+.google-map-container::before {
+    content: "🗺️ Google Maps wordt hier geladen...";
 }
 
-.summary-card {
-    display: flex;
-    align-items: center;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.summary-icon {
-    font-size: 3rem;
-    margin-right: 1.5rem;
-}
-
-.summary-content h3 {
-    margin-bottom: 1rem;
-    color: #2c3e50;
-}
-
-.summary-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-}
-
-.stat-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 6px;
-}
-
-.stat-label {
-    color: #6c757d;
-    font-weight: 500;
-}
-
-.stat-value {
-    color: #2c3e50;
-    font-weight: bold;
-}
-
-.route-list {
-    margin-bottom: 2rem;
-}
-
-.route-list h3 {
-    margin-bottom: 1rem;
-    color: #2c3e50;
-}
-
-.route-item {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
+/* Unassigned Patients */
+.unassigned-section {
+    margin: 2rem 0;
     padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.route-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.route-info h4 {
-    margin-bottom: 0.25rem;
-    color: #2c3e50;
-}
-
-.route-info p {
-    color: #6c757d;
-    font-size: 0.9rem;
-}
-
-.route-status {
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: bold;
-}
-
-.route-status.success {
-    background: #d4edda;
-    color: #155724;
-}
-
-.route-stops {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.stop-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-}
-
-.stop-item.depot {
-    background: #e3f2fd;
-    color: #1976d2;
-}
-
-.stop-item.patient {
-    background: #f3e5f5;
-    color: #7b1fa2;
-}
-
-.stop-icon {
-    font-size: 1.2rem;
-}
-
-.save-planning {
-    margin-bottom: 2rem;
-}
-
-.save-card {
-    display: flex;
-    align-items: center;
-    background: white;
-    border: 1px solid #dee2e6;
+    background: #f8f9fa;
     border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
 }
 
-.save-icon {
-    font-size: 3rem;
-    margin-right: 1.5rem;
-}
-
-.save-content h3 {
-    margin-bottom: 0.5rem;
+.unassigned-section h3 {
     color: #2c3e50;
+    margin-bottom: 1rem;
 }
 
-.save-content p {
-    color: #6c757d;
-    margin-bottom: 1.5rem;
+.unassigned-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
 }
 
-.save-options {
-    margin-bottom: 1.5rem;
-}
-
-.option-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-}
-
-.option-text {
-    color: #2c3e50;
+/* Action Buttons */
+.action-section {
+    margin-top: 2rem;
 }
 
 .action-buttons {
@@ -490,6 +1175,26 @@ function viewPlanning() {
 
 .btn-secondary:hover {
     background: #5a6268;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.btn-outline:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
 }
 
 .btn-icon {
@@ -536,32 +1241,390 @@ function viewPlanning() {
 }
 
 @media (max-width: 768px) {
-    .wizard-container {
+    .routes-container {
         padding: 1rem;
     }
     
-    .routes-section h1 {
+    .routes-header h1 {
         font-size: 2rem;
     }
     
-    .summary-stats {
+    .main-content {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
-    .route-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    
-    .route-stops {
-        flex-direction: column;
-        align-items: flex-start;
+    .unassigned-grid {
+        grid-template-columns: 1fr;
     }
     
     .action-buttons {
         flex-direction: column;
     }
+    
+    .vehicle-cards-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .map-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
 }
 </style>
+
+<script>
+// Google Maps API Key (moet worden ingesteld in Django admin)
+const GOOGLE_MAPS_API_KEY = '{{ google_maps_config.api_key|default:"" }}';
+console.log('🗺️ Google Maps API Key:', GOOGLE_MAPS_API_KEY ? 'Aanwezig' : 'Ontbreekt');
+
+// Global variables
+let map;
+let directionsService;
+let directionsRenderer;
+let routeMarkers = [];
+
+// Initialize Google Maps when page loads
+function initGoogleMaps() {
+    if (!GOOGLE_MAPS_API_KEY) {
+        console.warn('Google Maps API key niet gevonden');
+        document.getElementById('googleMap').innerHTML = '⚠️ Google Maps API key niet geconfigureerd';
+        return;
+    }
+
+    // Load Google Maps API
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+}
+
+// Initialize map (called by Google Maps API)
+function initMap() {
+    // Get depot location from Django template
+    const depotLocation = {
+        lat: {{ depot_location.latitude|default:"52.3676" }},
+        lng: {{ depot_location.longitude|default:"4.9041" }}
+    };
+    
+    console.log('🏢 Depot locatie:', depotLocation);
+    
+    map = new google.maps.Map(document.getElementById('googleMap'), {
+        zoom: 12,
+        center: depotLocation,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+    
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        suppressMarkers: false,
+        polylineOptions: {
+            strokeColor: '#007bff',
+            strokeWeight: 4
+        }
+    });
+    directionsRenderer.setMap(map);
+    
+    // Add depot marker
+    const depotName = '{{ depot_location.name|default:"Depot" }}';
+    const depotMarker = new google.maps.Marker({
+        position: depotLocation,
+        map: map,
+        title: depotName,
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="12" fill="#28a745" stroke="#fff" stroke-width="2"/>
+                    <text x="16" y="20" text-anchor="middle" fill="white" font-size="16" font-family="Arial">🏢</text>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(32, 32)
+        }
+    });
+    
+    // Add info window for depot
+    const depotInfoWindow = new google.maps.InfoWindow({
+        content: `
+            <div>
+                <h4>🏢 ${depotName}</h4>
+                <p>{{ depot_location.address|default:"Depot locatie" }}</p>
+                <p>Lat: ${depotLocation.lat.toFixed(6)}</p>
+                <p>Lng: ${depotLocation.lng.toFixed(6)}</p>
+            </div>
+        `
+    });
+    
+    depotMarker.addListener('click', () => {
+        depotInfoWindow.open(map, depotMarker);
+    });
+    
+    // Load routes if available
+    loadRoutesOnMap();
+}
+
+// Load routes on map
+function loadRoutesOnMap() {
+    console.log('Loading all routes on map');
+    
+    // Clear existing markers
+    routeMarkers.forEach(marker => marker.setMap(null));
+    routeMarkers = [];
+    
+    // Process each timeslot
+    Object.entries(routesByTimeslot).forEach(([timeslotId, timeslotData]) => {
+        const vehicleAssignments = timeslotData.vehicle_assignments;
+        
+        vehicleAssignments.forEach(assignment => {
+            const vehicle = assignment.vehicle;
+            const patients = assignment.patients;
+            
+            if (patients && patients.length > 0) {
+                // Create route for this vehicle
+                const waypoints = patients.map(patient => ({
+                    location: patient.adres || 'Amsterdam, Netherlands',
+                    stopover: true
+                }));
+                
+                const depotAddress = '{{ depot_location.address|default:"Amsterdam, Netherlands" }}';
+                const request = {
+                    origin: depotAddress, // Depot
+                    destination: depotAddress, // Back to depot
+                    waypoints: waypoints,
+                    optimizeWaypoints: true,
+                    travelMode: google.maps.TravelMode.DRIVING
+                };
+                
+                directionsService.route(request, (result, status) => {
+                    if (status === 'OK') {
+                        // Create a new directions renderer for this route
+                        const routeRenderer = new google.maps.DirectionsRenderer({
+                            suppressMarkers: false,
+                            polylineOptions: {
+                                strokeColor: vehicle.kleur || getVehicleColor(vehicle.id),
+                                strokeWeight: 3,
+                                strokeOpacity: 0.8
+                            }
+                        });
+                        routeRenderer.setMap(map);
+                        routeRenderer.setDirections(result);
+                        
+                        // Add vehicle info to route
+                        const route = result.routes[0];
+                        const leg = route.legs[0];
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `
+                                <div>
+                                    <h4>${vehicle.naam || 'Voertuig ' + vehicle.id}</h4>
+                                    <p>Patiënten: ${patients.length}</p>
+                                    <p>Afstand: ${route.distance.text}</p>
+                                    <p>Tijd: ${route.duration.text}</p>
+                                </div>
+                            `
+                        });
+                        
+                        // Add click listener to route
+                        routeRenderer.addListener('click', () => {
+                            infoWindow.open(map, routeRenderer.getDirections().routes[0].legs[0].start_location);
+                        });
+                    }
+                });
+            }
+        });
+    });
+}
+
+// Get vehicle color
+function getVehicleColor(vehicleId) {
+    const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
+    return colors[vehicleId % colors.length];
+}
+
+// Timeline filtering functionality
+let currentTimeFilter = null;
+
+function filterByTimeslot(time, timeslotId, timeslotType) {
+    console.log('Filtering by timeslot:', time, timeslotId, timeslotType);
+    console.log('Available timeslot IDs:', Object.keys(routesByTimeslot || {}));
+    
+    // Update active state
+    document.querySelectorAll('.timeline-segment').forEach(segment => {
+        segment.classList.remove('active');
+    });
+    
+    const activeSegment = document.querySelector(`[data-timeslot-id="${timeslotId}"]`);
+    if (activeSegment) {
+        activeSegment.classList.add('active');
+    }
+    
+    // Set current filter
+    currentTimeslotId = timeslotId;
+    
+    // Get route data for this timeslot
+    const timeslotData = routesByTimeslot[timeslotId];
+    if (!timeslotData) {
+        console.log('No data found for timeslot:', timeslotId);
+        console.log('Available data:', routesByTimeslot);
+        return;
+    }
+    
+    console.log('Timeslot data:', timeslotData);
+    
+    // Clear existing vehicle cards
+    const vehicleCardsList = document.getElementById('vehicleCardsList');
+    vehicleCardsList.innerHTML = '';
+    
+    // Show vehicle cards for this timeslot
+    const vehicleAssignments = timeslotData.vehicle_assignments;
+    if (vehicleAssignments && vehicleAssignments.length > 0) {
+        vehicleAssignments.forEach(assignment => {
+            const vehicleCard = createVehicleCard(assignment);
+            vehicleCardsList.appendChild(vehicleCard);
+        });
+    } else {
+        // Show empty state
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-timeslot';
+        emptyState.innerHTML = `
+            <span class="empty-icon">🚐</span>
+            <span class="empty-text">Geen voertuigen toegewezen voor tijdsblok ${time}</span>
+        `;
+        vehicleCardsList.appendChild(emptyState);
+    }
+    
+    // Show unassigned patients for this timeslot
+    const unassignedPatients = timeslotData.unassigned_patients;
+    const unassignedSection = document.getElementById('unassignedSection');
+    const unassignedGrid = document.getElementById('unassignedGrid');
+    
+    if (unassignedPatients && unassignedPatients.length > 0) {
+        unassignedGrid.innerHTML = '';
+        unassignedPatients.forEach(patient => {
+            const patientItem = createPatientItem(patient);
+            unassignedGrid.appendChild(patientItem);
+        });
+        unassignedSection.style.display = 'block';
+    } else {
+        unassignedSection.style.display = 'none';
+    }
+    
+    // Filter routes on map
+    filterRoutesOnMap(timeslotId);
+    
+    // Re-initialize drag and drop
+    initializeDragDrop();
+}
+
+function clearTimeFilter() {
+    console.log('Clearing time filter');
+    
+    // Remove active state
+    document.querySelectorAll('.timeline-segment').forEach(segment => {
+        segment.classList.remove('active');
+    });
+    
+    // Clear current filter
+    currentTimeslotId = null;
+    
+    // Show default state
+    const vehicleCardsList = document.getElementById('vehicleCardsList');
+    vehicleCardsList.innerHTML = `
+        <div class="no-timeslot-selected">
+            <span class="no-timeslot-icon">⏰</span>
+            <span class="no-timeslot-text">Klik op een tijdsblok om routes te bekijken</span>
+        </div>
+    `;
+    
+    // Hide unassigned section
+    const unassignedSection = document.getElementById('unassignedSection');
+    unassignedSection.style.display = 'none';
+    
+    // Show all routes on map
+    loadRoutesOnMap();
+}
+
+function filterRoutesOnMap(timeslotId) {
+    if (!map) return;
+    
+    // Clear existing routes
+    directionsRenderer.setMap(null);
+    
+    console.log('Filtering routes for timeslot ID:', timeslotId);
+    
+    // Get route data for this timeslot
+    const timeslotData = routesByTimeslot[timeslotId];
+    if (!timeslotData) {
+        console.log('No route data found for timeslot:', timeslotId);
+        return;
+    }
+    
+    const vehicleAssignments = timeslotData.vehicle_assignments;
+    console.log('Vehicle assignments for timeslot:', vehicleAssignments);
+    
+    // Create routes for each vehicle in this timeslot
+    vehicleAssignments.forEach(assignment => {
+        const vehicle = assignment.vehicle;
+        const patients = assignment.patients;
+        
+        if (patients && patients.length > 0) {
+            console.log('Creating route for vehicle:', vehicle.naam, 'with', patients.length, 'patients');
+            
+            // Create route for this vehicle
+            const waypoints = patients.map(patient => ({
+                location: patient.adres || 'Amsterdam, Netherlands',
+                stopover: true
+            }));
+            
+            const depotAddress = '{{ depot_location.address|default:"Amsterdam, Netherlands" }}';
+            const request = {
+                origin: depotAddress,
+                destination: depotAddress,
+                waypoints: waypoints,
+                optimizeWaypoints: true,
+                travelMode: google.maps.TravelMode.DRIVING
+            };
+            
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    const routeRenderer = new google.maps.DirectionsRenderer({
+                        suppressMarkers: false,
+                        polylineOptions: {
+                            strokeColor: vehicle.kleur || getVehicleColor(vehicle.id),
+                            strokeWeight: 3,
+                            strokeOpacity: 0.8
+                        }
+                    });
+                    routeRenderer.setMap(map);
+                    routeRenderer.setDirections(result);
+                }
+            });
+        }
+    });
+}
+
+// These functions are no longer needed as we now use the new timeslot-based approach
+
+// Show all routes
+function showAllRoutes() {
+    clearTimeFilter();
+}
+
+// Center on depot
+function centerOnDepot() {
+    if (map) {
+        const depotLocation = {
+            lat: {{ depot_location.latitude|default:"52.3676" }},
+            lng: {{ depot_location.longitude|default:"4.9041" }}
+        };
+        
+        console.log('🏢 Centreren op depot:', depotLocation);
+        map.setCenter(depotLocation);
+        map.setZoom(15); // Zoom in closer for depot view
+    }
+}
+
+</script>
 {% endblock %}

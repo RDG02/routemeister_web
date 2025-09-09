@@ -57,7 +57,7 @@ class PatientCacheManager:
     
     @staticmethod
     def get_or_create_patient_with_cache(naam, straat, postcode, plaats, telefoon, 
-                                       eerste_behandeling_tijd, laatste_behandeling_tijd, 
+                                       ophaal_tijd, eind_behandel_tijd, 
                                        bestemming="Routemeister Transport"):
         """
         Haal patiënt op uit cache of maak nieuwe aan
@@ -83,8 +83,8 @@ class PatientCacheManager:
                 )
                 
                 # Update alleen de tijden
-                existing_patient.ophaal_tijd = eerste_behandeling_tijd
-                existing_patient.eind_behandel_tijd = laatste_behandeling_tijd
+                existing_patient.ophaal_tijd = ophaal_tijd
+                existing_patient.eind_behandel_tijd = eind_behandel_tijd
                 existing_patient.telefoonnummer = telefoon
                 existing_patient.bestemming = bestemming
                 existing_patient.save()
@@ -107,8 +107,8 @@ class PatientCacheManager:
             postcode=postcode,
             plaats=plaats,
             telefoonnummer=telefoon,
-            ophaal_tijd=eerste_behandeling_tijd,
-            eind_behandel_tijd=laatste_behandeling_tijd,
+            ophaal_tijd=ophaal_tijd,
+            eind_behandel_tijd=eind_behandel_tijd,
             bestemming=bestemming,
             status='nieuw'
         )
@@ -161,8 +161,8 @@ class PatientCacheManager:
                 postcode = data[9]            # Kolom J
                 telefoon1 = data[10]          # Kolom K
                 telefoon2 = data[11]          # Kolom L
-                eerste_behandeling_tijd = data[19] if len(data) > 19 else "0800"   # Kolom 19 (start tijd)
-                laatste_behandeling_tijd = data[20] if len(data) > 20 else "1600"  # Kolom 20 (eind tijd)
+                ophaal_tijd = data[19] if len(data) > 19 else "0800"   # Kolom 19 (ophaal tijd)
+                eind_behandel_tijd = data[20] if len(data) > 20 else "1600"  # Kolom 20 (eind tijd)
                 
                 # Skip lege rijen
                 if not patient_id or not voornaam:
@@ -173,16 +173,16 @@ class PatientCacheManager:
                 # Combineer voor- en achternaam
                 volledige_naam = f"{voornaam} {achternaam}".strip()
                 
-                if not volledige_naam or not eerste_behandeling_tijd:
+                if not volledige_naam or not ophaal_tijd:
                     continue
                 
                 # Parse tijden
-                start_uur, start_minuut = PatientCacheManager.parse_time_string(eerste_behandeling_tijd, "08", "00")
-                eind_uur, eind_minuut = PatientCacheManager.parse_time_string(laatste_behandeling_tijd, "16", "00")
+                start_uur, start_minuut = PatientCacheManager.parse_time_string(ophaal_tijd, "08", "00")
+                eind_uur, eind_minuut = PatientCacheManager.parse_time_string(eind_behandel_tijd, "16", "00")
                 
                 # Maak datetime objecten
                 today = datetime.now().date()
-                ophaal_tijd = datetime(
+                ophaal_datetime = datetime(
                     year=today.year,
                     month=today.month,
                     day=today.day,
@@ -190,7 +190,7 @@ class PatientCacheManager:
                     minute=int(start_minuut)
                 )
                 
-                eind_tijd = datetime(
+                eind_datetime = datetime(
                     year=today.year,
                     month=today.month,
                     day=today.day,
@@ -201,7 +201,7 @@ class PatientCacheManager:
                 # Gebruik cache manager
                 patient, is_new = PatientCacheManager.get_or_create_patient_with_cache(
                     volledige_naam, straat, postcode, plaats, telefoon,
-                    ophaal_tijd, eind_tijd
+                    ophaal_datetime, eind_datetime
                 )
                 
                 if is_new:

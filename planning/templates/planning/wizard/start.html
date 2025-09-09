@@ -9,12 +9,17 @@
     <div class="wizard-progress">
         <div class="progress-step active">
             <div class="step-number">1</div>
-            <div class="step-label">Upload & Preview</div>
+            <div class="step-label">Upload</div>
         </div>
         <div class="progress-line"></div>
         <div class="progress-step">
             <div class="step-number">2</div>
-            <div class="step-label">Toewijzing & Routes</div>
+            <div class="step-label">Preview & Validatie</div>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Auto-Assignment & Routes</div>
         </div>
     </div>
 
@@ -24,38 +29,38 @@
             <img src="{% static 'Routemeister Icon Yellow.png' %}" alt="Routemeister" class="routemeister-icon-large">
         </div>
         <h1>🚀 Nieuwe Planning Wizard</h1>
-        <p class="welcome-description">
-            Maak een nieuwe planning in 2 eenvoudige stappen. Upload je CSV/SLK bestand, 
-            laat de wizard automatisch patiënten toewijzen en routes genereren.
-        </p>
+                 <p class="welcome-description">
+             Maak een nieuwe planning in 3 eenvoudige stappen. Upload je CSV/SLK bestand, 
+             controleer de data en laat de wizard automatisch patiënten toewijzen met geoptimaliseerde routes.
+         </p>
     </div>
 
     <!-- Features Overview -->
     <div class="wizard-features">
         <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon">📁</div>
-                <h3>Upload & Preview</h3>
-                <p>Upload CSV/SLK bestanden met auto-detectie en preview functionaliteit</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🤖</div>
-                <h3>Auto-toewijzing</h3>
-                <p>Automatische toewijzing volgens OptaPlanner constraints</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🖱️</div>
-                <h3>Drag & Drop</h3>
-                <p>Handmatige correcties met drag-and-drop interface</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🗺️</div>
-                <h3>Route Generatie</h3>
-                <p>Realistische routes met Google Maps API</p>
-            </div>
+                             <div class="feature-card">
+                     <div class="feature-icon">📁</div>
+                     <h3>Upload & Preview</h3>
+                     <p>Upload CSV/SLK bestanden met slimme cache en data preview</p>
+                 </div>
+                 
+                 <div class="feature-card">
+                     <div class="feature-icon">👁️</div>
+                     <h3>Data Validatie</h3>
+                     <p>Controleer en valideer geüploade data voordat je verder gaat</p>
+                 </div>
+                 
+                 <div class="feature-card">
+                     <div class="feature-icon">🤖</div>
+                     <h3>Auto-Assignment</h3>
+                     <p>Automatische patiënt-toewijzing met configureerbare constraints</p>
+                 </div>
+                 
+                 <div class="feature-card">
+                     <div class="feature-icon">🗺️</div>
+                     <h3>Route Optimalisatie</h3>
+                     <p>Geoptimaliseerde routes met Google Maps API en real-time feedback</p>
+                 </div>
         </div>
     </div>
 
@@ -125,6 +130,10 @@
     background: #F8CD46;
 }
 
+.progress-step.completed .step-number {
+    background: #28a745;
+}
+
 .step-label {
     font-size: 0.9rem;
     font-weight: 500;
@@ -132,7 +141,7 @@
 }
 
 .progress-line {
-    width: 100px;
+    width: 80px;
     height: 2px;
     background: #dee2e6;
     margin: 0 1rem;
