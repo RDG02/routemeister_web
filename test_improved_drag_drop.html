@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drag & Drop Test</title>
+    <title>Verbeterde Drag & Drop Test</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -33,6 +33,8 @@
             padding: 15px;
             min-width: 200px;
             min-height: 200px;
+            position: relative;
+            transition: all 0.2s ease;
         }
         
         .patient-item {
@@ -68,6 +70,14 @@
             color: #007bff;
             font-weight: 600;
             padding: 10px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .status {
@@ -77,11 +87,27 @@
             padding: 10px;
             margin-top: 20px;
         }
+        
+        .test-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 Drag & Drop Test</h1>
-    <p>Test de drag & drop functionaliteit door patiënten te slepen naar voertuigen.</p>
+    <h1>🧪 Verbeterde Drag & Drop Test</h1>
+    
+    <div class="test-info">
+        <h3>📋 Test Instructies:</h3>
+        <ul>
+            <li>✅ <strong>Correct:</strong> Sleep patiënten naar de <strong>lege ruimte</strong> in voertuigen</li>
+            <li>❌ <strong>Fout:</strong> Sleep patiënten <strong>NIET</strong> op andere patiënten</li>
+            <li>🎯 <strong>Doel:</strong> Alleen voertuig drop zones moeten reageren</li>
+        </ul>
+    </div>
     
     <div class="test-container">
         <div class="patient-list">
@@ -115,7 +141,7 @@
     </div>
     
     <div class="status">
-        <h3>📊 Status</h3>
+        <h3>📊 Status Log</h3>
         <div id="statusLog"></div>
     </div>
 
@@ -128,7 +154,7 @@
         });
         
         function initializeDragDrop() {
-            console.log('Initializing drag and drop...');
+            console.log('Initializing improved drag and drop...');
             
             // Make patient items draggable
             const patientItems = document.querySelectorAll('.patient-item.draggable');
@@ -175,12 +201,32 @@
         function handleDragEnter(e) {
             e.preventDefault();
             console.log('Drag enter:', e.target);
-            e.target.classList.add('drag-over');
+            
+            // Only add drag-over class to vehicle-list elements
+            let dropZone = e.target;
+            while (dropZone && !dropZone.classList.contains('vehicle-list')) {
+                dropZone = dropZone.parentElement;
+            }
+            
+            if (dropZone) {
+                dropZone.classList.add('drag-over');
+                logStatus('Drag over: ' + dropZone.dataset.vehicleId);
+            }
         }
         
         function handleDragLeave(e) {
             console.log('Drag leave:', e.target);
-            e.target.classList.remove('drag-over');
+            
+            // Only remove drag-over class from vehicle-list elements
+            let dropZone = e.target;
+            while (dropZone && !dropZone.classList.contains('vehicle-list')) {
+                dropZone = dropZone.parentElement;
+            }
+            
+            if (dropZone) {
+                dropZone.classList.remove('drag-over');
+                logStatus('Drag leave: ' + dropZone.dataset.vehicleId);
+            }
         }
         
         function handleDrop(e) {
@@ -195,10 +241,35 @@
                 return;
             }
             
-            const vehicleId = e.target.dataset.vehicleId;
-            const dropZone = e.target;
+            // Find the actual drop zone (vehicle-list)
+            let dropZone = e.target;
+            while (dropZone && !dropZone.classList.contains('vehicle-list')) {
+                dropZone = dropZone.parentElement;
+            }
+            
+            if (!dropZone) {
+                console.log('No valid drop zone found');
+                logStatus('❌ Geen geldige drop zone gevonden');
+                return;
+            }
+            
+            const vehicleId = dropZone.dataset.vehicleId;
             
             console.log('Dropping on vehicle:', vehicleId);
+            
+            // Don't allow dropping on the same patient
+            if (e.target.classList.contains('patient-item') && e.target === draggedPatient) {
+                console.log('Cannot drop on self');
+                logStatus('❌ Kan niet op zichzelf droppen');
+                return;
+            }
+            
+            // Don't allow dropping on other patients
+            if (e.target.classList.contains('patient-item')) {
+                console.log('Cannot drop on other patients');
+                logStatus('❌ Kan niet op andere patiënten droppen');
+                return;
+            }
             
             // Remove empty vehicle message if it exists
             const emptyVehicle = dropZone.querySelector('.empty-vehicle');
@@ -224,7 +295,7 @@
             // Remove from patient list
             draggedPatient.remove();
             
-            logStatus(`Patiënt toegewezen aan ${vehicleId}: ${patientClone.querySelector('strong').textContent}`);
+            logStatus('✅ Patiënt toegewezen aan ' + vehicleId + ': ' + patientClone.querySelector('strong').textContent);
         }
         
         function removePatientFromVehicle(patientElement, vehicleId) {
@@ -251,7 +322,7 @@
                 vehicle.appendChild(emptyDiv);
             }
             
-            logStatus(`Patiënt verwijderd uit ${vehicleId}`);
+            logStatus('🔄 Patiënt verwijderd uit ' + vehicleId);
         }
         
         function logStatus(message) {

@@ -254,12 +254,30 @@ function handleDragOver(e) {
 function handleDragEnter(e) {
     e.preventDefault();
     console.log('Drag enter:', e.target);
-    e.target.classList.add('drag-over');
+    
+    // Only add drag-over class to vehicle-patients-list elements
+    let dropZone = e.target;
+    while (dropZone && !dropZone.classList.contains('vehicle-patients-list')) {
+        dropZone = dropZone.parentElement;
+    }
+    
+    if (dropZone) {
+        dropZone.classList.add('drag-over');
+    }
 }
 
 function handleDragLeave(e) {
     console.log('Drag leave:', e.target);
-    e.target.classList.remove('drag-over');
+    
+    // Only remove drag-over class from vehicle-patients-list elements
+    let dropZone = e.target;
+    while (dropZone && !dropZone.classList.contains('vehicle-patients-list')) {
+        dropZone = dropZone.parentElement;
+    }
+    
+    if (dropZone) {
+        dropZone.classList.remove('drag-over');
+    }
 }
 
 function handleDrop(e) {
@@ -274,10 +292,32 @@ function handleDrop(e) {
         return;
     }
     
-    const vehicleId = e.target.dataset.vehicleId;
-    const dropZone = e.target;
+    // Find the actual drop zone (vehicle-patients-list)
+    let dropZone = e.target;
+    while (dropZone && !dropZone.classList.contains('vehicle-patients-list')) {
+        dropZone = dropZone.parentElement;
+    }
+    
+    if (!dropZone) {
+        console.log('No valid drop zone found');
+        return;
+    }
+    
+    const vehicleId = dropZone.dataset.vehicleId;
     
     console.log('Dropping on vehicle:', vehicleId);
+    
+    // Don't allow dropping on the same patient
+    if (e.target.classList.contains('patient-item') && e.target === draggedPatient) {
+        console.log('Cannot drop on self');
+        return;
+    }
+    
+    // Don't allow dropping on other patients
+    if (e.target.classList.contains('patient-item')) {
+        console.log('Cannot drop on other patients');
+        return;
+    }
     
     // Remove empty vehicle message if it exists
     const emptyVehicle = dropZone.querySelector('.empty-vehicle');
@@ -316,8 +356,6 @@ function handleDrop(e) {
     
     console.log('Patient assigned to vehicle:', patientId, vehicleId);
     console.log('Current assignments:', currentAssignments);
-    
-    console.log(`Patient ${patientId} assigned to vehicle ${vehicleId}`);
 }
 
 function removePatientFromVehicle(removeButton, vehicleId) {
@@ -1018,6 +1056,7 @@ function goBack() {
 .vehicle-patients-list {
     min-height: 60px;
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .vehicle-patients-list.drag-over {
@@ -1034,6 +1073,14 @@ function goBack() {
     font-weight: 600;
     padding: 10px;
     font-size: 14px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .patient-name {
