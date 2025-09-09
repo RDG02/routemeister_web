@@ -11,7 +11,7 @@
         <p class="header-description">
             Sleep patiënten tussen voertuigen en pas de volgorde aan voor optimale routes
         </p>
-    </div>
+        </div>
 
     <!-- Timeline Tracker -->
     <div class="timeline-section">
@@ -31,10 +31,10 @@
                         🏠
                     {% endif %}
                 </span>
-                        </div>
+        </div>
             {% endfor %}
             <div class="timeline-cursor"></div>
-                        </div>
+    </div>
         <div class="timeline-controls">
             <button class="clear-filter-btn" onclick="clearTimeFilter()">Toon Alles</button>
                         </div>
@@ -56,8 +56,8 @@
                             <span class="btn-icon">🔄</span>
                             Reset
                         </button>
-            </div>
-        </div>
+                        </div>
+                        </div>
 
                 <div class="vehicle-cards-list" id="vehicleCardsList">
                     <!-- Vehicle cards will be populated by JavaScript based on selected timeslot -->
@@ -66,8 +66,8 @@
                         <span class="no-timeslot-text">Klik op een tijdsblok om routes te bekijken</span>
                     </div>
                 </div>
-                </div>
             </div>
+        </div>
 
         <!-- Right Column: Google Maps -->
         <div class="right-column">
@@ -89,16 +89,16 @@
                     <!-- Google Maps wordt hier geladen -->
                     </div>
                     </div>
-            </div>
-        </div>
+                    </div>
+                    </div>
 
     <!-- Unassigned Patients -->
     <div class="unassigned-section" id="unassignedSection" style="display: none;">
         <h3>👥 Niet-toegewezen Patiënten</h3>
         <div class="unassigned-grid" id="unassignedGrid">
             <!-- Unassigned patients will be populated by JavaScript -->
+                </div>
             </div>
-        </div>
 
         <!-- Action Buttons -->
     <div class="action-section">
@@ -115,9 +115,9 @@
                 <span class="btn-icon">📤</span>
                 Verstuur naar Chauffeurs
             </button>
-        </div>
-    </div>
-</div>
+                    </div>
+                </div>
+                    </div>
 
 <!-- Hidden Data for JavaScript -->
 <script id="routes-data" type="application/json">
@@ -412,7 +412,7 @@ function createVehicleCard(assignment) {
         <div class="vehicle-card-header" style="background-color: ${vehicle.kleur}; color: white;">
             <div class="vehicle-code">${vehicle.naam}</div>
             <div class="vehicle-info">${vehicle.type}</div>
-        </div>
+                    </div>
         
         <div class="vehicle-patients-list" data-vehicle-id="${vehicle.id}">
             ${patients.map(patient => `
@@ -431,10 +431,10 @@ function createVehicleCard(assignment) {
                         <div class="patient-status">
                             <span class="car-icon">🚗</span>
                             <span class="status-text">Toegewezen</span>
-                        </div>
                     </div>
-                    <button class="remove-patient" onclick="removePatientFromVehicle(this, '${vehicle.id}')">❌</button>
                 </div>
+                    <button class="remove-patient" onclick="removePatientFromVehicle(this, '${vehicle.id}')">❌</button>
+            </div>
             `).join('')}
             ${patients.length === 0 ? '<div class="empty-vehicle"><span class="empty-icon">👥</span><span class="empty-text">Geen patiënten toegewezen</span></div>' : ''}
         </div>
@@ -477,8 +477,8 @@ function createPatientItem(patient) {
             <div class="patient-status">
                 <span class="car-icon">🚗</span>
                 <span class="status-text">Niet toegewezen</span>
-            </div>
-        </div>
+    </div>
+</div>
     `;
     
     // Add drag event listeners to the drag handle
@@ -1488,12 +1488,21 @@ function initGoogleMaps() {
         return;
     }
 
-    // Load Google Maps API
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initMap`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
+    console.log('🗺️ Initializing Google Maps...');
+    
+    // Check if Google Maps API is already loaded
+    if (typeof google !== 'undefined' && google.maps) {
+        console.log('✅ Google Maps API already loaded, initializing map...');
+        initMap();
+    } else {
+        console.log('📡 Loading Google Maps API...');
+        // Load Google Maps API
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initMap`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }
 }
 
 // Initialize map (called by Google Maps API)
@@ -1561,28 +1570,52 @@ function initMap() {
 
 // Load routes on map
 function loadRoutesOnMap() {
-    console.log('Loading all routes on map');
+    console.log('🗺️ Loading all routes on map...');
+    console.log('Routes data:', routesByTimeslot);
     
     // Clear existing markers
     routeMarkers.forEach(marker => marker.setMap(null));
     routeMarkers = [];
     
+    if (!routesByTimeslot || Object.keys(routesByTimeslot).length === 0) {
+        console.log('⚠️ No route data available');
+        return;
+    }
+    
+    let routeCount = 0;
+    
     // Process each timeslot
     Object.entries(routesByTimeslot).forEach(([timeslotId, timeslotData]) => {
+        console.log(`📅 Processing timeslot ${timeslotId}:`, timeslotData);
+        
         const vehicleAssignments = timeslotData.vehicle_assignments;
+        
+        if (!vehicleAssignments || vehicleAssignments.length === 0) {
+            console.log(`⚠️ No vehicle assignments for timeslot ${timeslotId}`);
+            return;
+        }
         
         vehicleAssignments.forEach(assignment => {
             const vehicle = assignment.vehicle;
             const patients = assignment.patients;
             
+            console.log(`🚐 Processing vehicle ${vehicle.naam || vehicle.id}:`, patients);
+            
             if (patients && patients.length > 0) {
                 // Create route for this vehicle
-                const waypoints = patients.map(patient => ({
-                    location: patient.adres || 'Amsterdam, Netherlands',
-                    stopover: true
-                }));
+                const waypoints = patients.map(patient => {
+                    // Build address from patient fields
+                    const address = `${patient.straat}, ${patient.postcode} ${patient.plaats}`;
+                    console.log(`📍 Patient ${patient.naam} address: ${address}`);
+                    return {
+                        location: address,
+                        stopover: true
+                    };
+                });
                 
                 const depotAddress = '{{ depot_location.address|default:"Amsterdam, Netherlands" }}';
+                console.log(`🏢 Depot address: ${depotAddress}`);
+                
                 const request = {
                     origin: depotAddress, // Depot
                     destination: depotAddress, // Back to depot
@@ -1591,8 +1624,13 @@ function loadRoutesOnMap() {
                     travelMode: google.maps.TravelMode.DRIVING
                 };
                 
+                console.log(`🗺️ Requesting route for vehicle ${vehicle.naam}:`, request);
+                
                 directionsService.route(request, (result, status) => {
                     if (status === 'OK') {
+                        console.log(`✅ Route created for vehicle ${vehicle.naam}`);
+                        routeCount++;
+                        
                         // Create a new directions renderer for this route
                         const routeRenderer = new google.maps.DirectionsRenderer({
                             suppressMarkers: false,
@@ -1623,11 +1661,17 @@ function loadRoutesOnMap() {
                         routeRenderer.addListener('click', () => {
                             infoWindow.open(map, routeRenderer.getDirections().routes[0].legs[0].start_location);
                         });
+                    } else {
+                        console.error(`❌ Route failed for vehicle ${vehicle.naam}:`, status);
                     }
                 });
+            } else {
+                console.log(`⚠️ No patients for vehicle ${vehicle.naam || vehicle.id}`);
             }
         });
     });
+    
+    console.log(`🗺️ Total routes loaded: ${routeCount}`);
 }
 
 // Get vehicle color
@@ -1812,7 +1856,15 @@ function filterRoutesOnMap(timeslotId) {
 
 // Show all routes
 function showAllRoutes() {
+    console.log('🌍 Showing all routes on map...');
     clearTimeFilter();
+    
+    // Reload all routes on the map
+    if (map && directionsService) {
+        loadRoutesOnMap();
+    } else {
+        console.log('⚠️ Map not initialized yet');
+    }
 }
 
 // Center on depot
