@@ -323,7 +323,8 @@
                 <ul class="nav-links">
     
                     <li><a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-                                    <li><a href="{% url 'planning_new' %}" {% if request.resolver_match.url_name == 'planning_new' %}class="active"{% endif %}>Planning</a></li>
+                    <li><a href="{% url 'planning_new' %}" {% if request.resolver_match.url_name == 'planning_new' %}class="active"{% endif %}>Planning</a></li>
+                    <li><a href="{% url 'planning_wizard_routes' %}" {% if request.resolver_match.url_name == 'planning_wizard_routes' %}class="active"{% endif %}>Routes</a></li>
                     <li><a href="{% url 'statistics' %}" {% if request.resolver_match.url_name == 'statistics' %}class="active"{% endif %}>Statistieken</a></li>
                     <li><a href="{% url 'vehicles_list' %}" {% if request.resolver_match.url_name == 'vehicles_list' %}class="active"{% endif %}>Voertuigen</a></li>
                     <li><a href="{% url 'users_list' %}" {% if request.resolver_match.url_name == 'users_list' %}class="active"{% endif %}>Gebruikers</a></li>
