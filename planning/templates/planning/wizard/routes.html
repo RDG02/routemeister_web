@@ -198,19 +198,21 @@ function initializeDragDrop() {
     console.log('Found draggable patient items:', patientItems.length);
     
     patientItems.forEach(item => {
-        // Remove existing listeners to avoid duplicates
-        item.removeEventListener('dragstart', handleDragStart);
-        item.removeEventListener('dragend', handleDragEnd);
-        
-        // Add new listeners
-        item.addEventListener('dragstart', handleDragStart);
-        item.addEventListener('dragend', handleDragEnd);
-        
-        // Ensure draggable attribute is set and cursor is correct
-        item.draggable = true;
-        item.style.cursor = 'grab';
-        
-        console.log('Initialized drag for patient:', item.dataset.patientName);
+        const dragHandle = item.querySelector('.patient-drag-handle');
+        if (dragHandle) {
+            // Remove existing listeners to avoid duplicates
+            dragHandle.removeEventListener('dragstart', handleDragStart);
+            dragHandle.removeEventListener('dragend', handleDragEnd);
+            
+            // Add new listeners
+            dragHandle.addEventListener('dragstart', handleDragStart);
+            dragHandle.addEventListener('dragend', handleDragEnd);
+            
+            // Ensure draggable attribute is set
+            dragHandle.draggable = true;
+            
+            console.log('Initialized drag handle for patient:', item.dataset.patientName);
+        }
     });
 
     // Make vehicle patient lists droppable
@@ -420,11 +422,16 @@ function createVehicleCard(assignment) {
                      data-patient-times="${patient.ophaal_tijd}/${patient.eind_behandel_tijd}" 
                      data-patient-address="${patient.adres}" 
                      draggable="true">
-                    <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
-                    <div class="patient-address">${patient.adres}</div>
-                    <div class="patient-status">
-                        <span class="car-icon">🚗</span>
-                        <span class="status-text">Toegewezen</span>
+                    <div class="patient-drag-handle">
+                        <span class="drag-icon">⋮⋮</span>
+                    </div>
+                    <div class="patient-content">
+                        <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
+                        <div class="patient-address">${patient.adres}</div>
+                        <div class="patient-status">
+                            <span class="car-icon">🚗</span>
+                            <span class="status-text">Toegewezen</span>
+                        </div>
                     </div>
                     <button class="remove-patient" onclick="removePatientFromVehicle(this, '${vehicle.id}')">❌</button>
                 </div>
@@ -437,8 +444,12 @@ function createVehicleCard(assignment) {
     setTimeout(() => {
         const patientItems = card.querySelectorAll('.patient-item.draggable');
         patientItems.forEach(item => {
-            item.addEventListener('dragstart', handleDragStart);
-            item.addEventListener('dragend', handleDragEnd);
+            const dragHandle = item.querySelector('.patient-drag-handle');
+            if (dragHandle) {
+                dragHandle.addEventListener('dragstart', handleDragStart);
+                dragHandle.addEventListener('dragend', handleDragEnd);
+                dragHandle.draggable = true;
+            }
         });
     }, 10);
     
@@ -457,17 +468,26 @@ function createPatientItem(patient) {
     item.draggable = true;
     
     item.innerHTML = `
-        <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
-        <div class="patient-address">${patient.adres}</div>
-        <div class="patient-status">
-            <span class="car-icon">🚗</span>
-            <span class="status-text">Niet toegewezen</span>
+        <div class="patient-drag-handle">
+            <span class="drag-icon">⋮⋮</span>
+        </div>
+        <div class="patient-content">
+            <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
+            <div class="patient-address">${patient.adres}</div>
+            <div class="patient-status">
+                <span class="car-icon">🚗</span>
+                <span class="status-text">Niet toegewezen</span>
+            </div>
         </div>
     `;
     
-    // Add drag event listeners
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragend', handleDragEnd);
+    // Add drag event listeners to the drag handle
+    const dragHandle = item.querySelector('.patient-drag-handle');
+    if (dragHandle) {
+        dragHandle.addEventListener('dragstart', handleDragStart);
+        dragHandle.addEventListener('dragend', handleDragEnd);
+        dragHandle.draggable = true;
+    }
     
     console.log('Created draggable patient item:', patient.naam);
     
@@ -1041,11 +1061,14 @@ function goBack() {
     background: white;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    padding: 0.75rem;
+    padding: 0;
     margin-bottom: 0.5rem;
     cursor: move;
     transition: all 0.2s;
     position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 60px;
 }
 
 .patient-item:hover {
@@ -1064,6 +1087,40 @@ function goBack() {
 
 .patient-item.draggable:hover {
     cursor: grab !important;
+}
+
+.patient-drag-handle {
+    background: #e9ecef;
+    border-right: 1px solid #dee2e6;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    border-radius: 6px 0 0 6px;
+    min-width: 40px;
+}
+
+.patient-drag-handle:hover {
+    background: #dee2e6;
+    cursor: grab;
+}
+
+.patient-drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-icon {
+    color: #6c757d;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+    user-select: none;
+}
+
+.patient-content {
+    flex: 1;
+    padding: 0.75rem;
 }
 
 .patient-item.dragging {
@@ -1145,6 +1202,7 @@ function goBack() {
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 10;
 }
 
 .remove-patient:hover {
