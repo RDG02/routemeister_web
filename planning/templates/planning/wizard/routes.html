@@ -420,14 +420,14 @@ function createVehicleCard(assignment) {
                      data-patient-id="${patient.id}" 
                      data-patient-name="${patient.naam}" 
                      data-patient-times="${patient.ophaal_tijd}/${patient.eind_behandel_tijd}" 
-                     data-patient-address="${patient.adres}" 
+                     data-patient-address="${patient.straat}, ${patient.postcode} ${patient.plaats}" 
                      draggable="true">
                     <div class="patient-drag-handle">
                         <span class="drag-icon">⋮⋮</span>
                     </div>
                     <div class="patient-content">
                         <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
-                        <div class="patient-address">${patient.adres}</div>
+                        <div class="patient-address">${patient.straat}, ${patient.postcode} ${patient.plaats}</div>
                         <div class="patient-status">
                             <span class="car-icon">🚗</span>
                             <span class="status-text">Toegewezen</span>
@@ -464,7 +464,7 @@ function createPatientItem(patient) {
     item.dataset.patientId = patient.id;
     item.dataset.patientName = patient.naam;
     item.dataset.patientTimes = `${patient.ophaal_tijd}/${patient.eind_behandel_tijd}`;
-    item.dataset.patientAddress = patient.adres;
+    item.dataset.patientAddress = patient.adres || `${patient.straat || ''}, ${patient.postcode || ''} ${patient.plaats || ''}`;
     item.draggable = true;
     
     item.innerHTML = `
@@ -473,7 +473,7 @@ function createPatientItem(patient) {
         </div>
         <div class="patient-content">
             <div class="patient-name">${patient.naam} ${patient.ophaal_tijd}/${patient.eind_behandel_tijd}</div>
-            <div class="patient-address">${patient.adres}</div>
+            <div class="patient-address">${patient.adres || `${patient.straat || ''}, ${patient.postcode || ''} ${patient.plaats || ''}`}</div>
             <div class="patient-status">
                 <span class="car-icon">🚗</span>
                 <span class="status-text">Niet toegewezen</span>
