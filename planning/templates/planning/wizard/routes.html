@@ -191,16 +191,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Drag and Drop functionality
 function initializeDragDrop() {
+    console.log('Initializing drag and drop...');
+    
     // Make patient items draggable
-    const patientItems = document.querySelectorAll('.patient-item');
+    const patientItems = document.querySelectorAll('.patient-item.draggable');
+    console.log('Found draggable patient items:', patientItems.length);
+    
     patientItems.forEach(item => {
+        // Remove existing listeners to avoid duplicates
+        item.removeEventListener('dragstart', handleDragStart);
+        item.removeEventListener('dragend', handleDragEnd);
+        
+        // Add new listeners
         item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragend', handleDragEnd);
+        
+        // Ensure draggable attribute is set
+        item.draggable = true;
     });
 
     // Make vehicle patient lists droppable
     const dropZones = document.querySelectorAll('.vehicle-patients-list');
+    console.log('Found drop zones:', dropZones.length);
+    
     dropZones.forEach(zone => {
+        // Remove existing listeners to avoid duplicates
+        zone.removeEventListener('dragover', handleDragOver);
+        zone.removeEventListener('drop', handleDrop);
+        zone.removeEventListener('dragenter', handleDragEnter);
+        zone.removeEventListener('dragleave', handleDragLeave);
+        
+        // Add new listeners
         zone.addEventListener('dragover', handleDragOver);
         zone.addEventListener('drop', handleDrop);
         zone.addEventListener('dragenter', handleDragEnter);
@@ -209,14 +230,19 @@ function initializeDragDrop() {
 }
 
 function handleDragStart(e) {
+    console.log('Drag start:', e.target);
     draggedPatient = e.target;
     e.target.style.opacity = '0.5';
+    e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.outerHTML);
+    e.dataTransfer.setData('text/plain', e.target.dataset.patientId);
 }
 
 function handleDragEnd(e) {
+    console.log('Drag end:', e.target);
     e.target.style.opacity = '1';
+    e.target.classList.remove('dragging');
     draggedPatient = null;
 }
 
@@ -227,10 +253,12 @@ function handleDragOver(e) {
 
 function handleDragEnter(e) {
     e.preventDefault();
+    console.log('Drag enter:', e.target);
     e.target.classList.add('drag-over');
 }
 
 function handleDragLeave(e) {
+    console.log('Drag leave:', e.target);
     e.target.classList.remove('drag-over');
 }
 
@@ -238,10 +266,18 @@ function handleDrop(e) {
     e.preventDefault();
     e.target.classList.remove('drag-over');
     
-    if (!draggedPatient) return;
+    console.log('Drop event:', e.target);
+    console.log('Dragged patient:', draggedPatient);
+    
+    if (!draggedPatient) {
+        console.log('No dragged patient found');
+        return;
+    }
     
     const vehicleId = e.target.dataset.vehicleId;
     const dropZone = e.target;
+    
+    console.log('Dropping on vehicle:', vehicleId);
     
     // Remove empty vehicle message if it exists
     const emptyVehicle = dropZone.querySelector('.empty-vehicle');
@@ -251,7 +287,7 @@ function handleDrop(e) {
     
     // Clone the patient item for the vehicle
     const patientClone = draggedPatient.cloneNode(true);
-    patientClone.classList.remove('draggable');
+    patientClone.classList.remove('draggable', 'dragging');
     patientClone.draggable = false;
     patientClone.style.opacity = '1';
     
@@ -277,6 +313,9 @@ function handleDrop(e) {
         currentAssignments[vehicleId] = [];
     }
     currentAssignments[vehicleId].push(patientId);
+    
+    console.log('Patient assigned to vehicle:', patientId, vehicleId);
+    console.log('Current assignments:', currentAssignments);
     
     console.log(`Patient ${patientId} assigned to vehicle ${vehicleId}`);
 }
@@ -373,9 +412,11 @@ function createPatientItem(patient) {
         </div>
     `;
     
-    // Re-add drag event listeners
+    // Add drag event listeners
     item.addEventListener('dragstart', handleDragStart);
     item.addEventListener('dragend', handleDragEnd);
+    
+    console.log('Created draggable patient item:', patient.naam);
     
     return item;
 }
@@ -961,10 +1002,38 @@ function goBack() {
 
 .patient-item.draggable {
     cursor: grab;
+    transition: all 0.2s ease;
 }
 
 .patient-item.draggable:active {
     cursor: grabbing;
+}
+
+.patient-item.dragging {
+    opacity: 0.5 !important;
+    transform: rotate(5deg);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.vehicle-patients-list {
+    min-height: 60px;
+    transition: all 0.2s ease;
+}
+
+.vehicle-patients-list.drag-over {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+}
+
+.vehicle-patients-list.drag-over::before {
+    content: "Drop patiënt hier";
+    display: block;
+    text-align: center;
+    color: #007bff;
+    font-weight: 600;
+    padding: 10px;
+    font-size: 14px;
 }
 
 .patient-name {

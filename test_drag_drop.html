@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .patient-list {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 200px;
+            min-height: 200px;
+        }
+        
+        .vehicle-list {
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 200px;
+            min-height: 200px;
+        }
+        
+        .patient-item {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        
+        .patient-item:hover {
+            background: #bbdefb;
+            transform: translateY(-1px);
+        }
+        
+        .patient-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .vehicle-list.drag-over {
+            background-color: rgba(0, 123, 255, 0.1);
+            border: 2px dashed #007bff;
+        }
+        
+        .vehicle-list.drag-over::before {
+            content: "Drop patiënt hier";
+            display: block;
+            text-align: center;
+            color: #007bff;
+            font-weight: 600;
+            padding: 10px;
+        }
+        
+        .status {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Drag & Drop Test</h1>
+    <p>Test de drag & drop functionaliteit door patiënten te slepen naar voertuigen.</p>
+    
+    <div class="test-container">
+        <div class="patient-list">
+            <h3>👥 Patiënten</h3>
+            <div class="patient-item draggable" draggable="true" data-patient-id="1">
+                <strong>Julia Gluckmann</strong><br>
+                <small>08:45/15:15</small><br>
+                <small>Cranachstr. 15, Sankt Augustin</small>
+            </div>
+            <div class="patient-item draggable" draggable="true" data-patient-id="2">
+                <strong>Lofo Makonga</strong><br>
+                <small>08:45/15:15</small><br>
+                <small>Lahnstr. 12, Troisdorf</small>
+            </div>
+            <div class="patient-item draggable" draggable="true" data-patient-id="3">
+                <strong>Wilfried Dose</strong><br>
+                <small>10:15/16:15</small><br>
+                <small>Hauptstr. 5, Bonn</small>
+            </div>
+        </div>
+        
+        <div class="vehicle-list" data-vehicle-id="Wag001">
+            <h3>🚐 Wag001</h3>
+            <div class="empty-vehicle">Geen patiënten toegewezen</div>
+        </div>
+        
+        <div class="vehicle-list" data-vehicle-id="Wag002">
+            <h3>🚐 Wag002</h3>
+            <div class="empty-vehicle">Geen patiënten toegewezen</div>
+        </div>
+    </div>
+    
+    <div class="status">
+        <h3>📊 Status</h3>
+        <div id="statusLog"></div>
+    </div>
+
+    <script>
+        let draggedPatient = null;
+        
+        // Initialize drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDragDrop();
+        });
+        
+        function initializeDragDrop() {
+            console.log('Initializing drag and drop...');
+            
+            // Make patient items draggable
+            const patientItems = document.querySelectorAll('.patient-item.draggable');
+            console.log('Found draggable patient items:', patientItems.length);
+            
+            patientItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+
+            // Make vehicle lists droppable
+            const dropZones = document.querySelectorAll('.vehicle-list');
+            console.log('Found drop zones:', dropZones.length);
+            
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('drop', handleDrop);
+                zone.addEventListener('dragenter', handleDragEnter);
+                zone.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+        
+        function handleDragStart(e) {
+            console.log('Drag start:', e.target);
+            draggedPatient = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.patientId);
+            logStatus('Drag gestart: ' + e.target.querySelector('strong').textContent);
+        }
+        
+        function handleDragEnd(e) {
+            console.log('Drag end:', e.target);
+            e.target.classList.remove('dragging');
+            draggedPatient = null;
+            logStatus('Drag beëindigd');
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+        
+        function handleDragEnter(e) {
+            e.preventDefault();
+            console.log('Drag enter:', e.target);
+            e.target.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(e) {
+            console.log('Drag leave:', e.target);
+            e.target.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            e.target.classList.remove('drag-over');
+            
+            console.log('Drop event:', e.target);
+            console.log('Dragged patient:', draggedPatient);
+            
+            if (!draggedPatient) {
+                console.log('No dragged patient found');
+                return;
+            }
+            
+            const vehicleId = e.target.dataset.vehicleId;
+            const dropZone = e.target;
+            
+            console.log('Dropping on vehicle:', vehicleId);
+            
+            // Remove empty vehicle message if it exists
+            const emptyVehicle = dropZone.querySelector('.empty-vehicle');
+            if (emptyVehicle) {
+                emptyVehicle.remove();
+            }
+            
+            // Clone the patient item for the vehicle
+            const patientClone = draggedPatient.cloneNode(true);
+            patientClone.classList.remove('draggable', 'dragging');
+            patientClone.draggable = false;
+            
+            // Add remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '❌';
+            removeBtn.style.cssText = 'float: right; background: none; border: none; cursor: pointer;';
+            removeBtn.onclick = () => removePatientFromVehicle(patientClone, vehicleId);
+            patientClone.appendChild(removeBtn);
+            
+            // Add to vehicle
+            dropZone.appendChild(patientClone);
+            
+            // Remove from patient list
+            draggedPatient.remove();
+            
+            logStatus(`Patiënt toegewezen aan ${vehicleId}: ${patientClone.querySelector('strong').textContent}`);
+        }
+        
+        function removePatientFromVehicle(patientElement, vehicleId) {
+            // Move back to patient list
+            const patientList = document.querySelector('.patient-list');
+            const originalPatient = patientElement.cloneNode(true);
+            originalPatient.classList.add('draggable');
+            originalPatient.draggable = true;
+            originalPatient.removeChild(originalPatient.querySelector('button')); // Remove remove button
+            
+            // Re-add drag listeners
+            originalPatient.addEventListener('dragstart', handleDragStart);
+            originalPatient.addEventListener('dragend', handleDragEnd);
+            
+            patientList.appendChild(originalPatient);
+            patientElement.remove();
+            
+            // Check if vehicle is now empty
+            const vehicle = document.querySelector(`[data-vehicle-id="${vehicleId}"]`);
+            if (vehicle.children.length === 1) { // Only the h3 title
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-vehicle';
+                emptyDiv.textContent = 'Geen patiënten toegewezen';
+                vehicle.appendChild(emptyDiv);
+            }
+            
+            logStatus(`Patiënt verwijderd uit ${vehicleId}`);
+        }
+        
+        function logStatus(message) {
+            const statusLog = document.getElementById('statusLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>${timestamp}:</strong> ${message}`;
+            statusLog.insertBefore(logEntry, statusLog.firstChild);
+        }
+    </script>
+</body>
+</html>
