@@ -1471,7 +1471,7 @@ function goBack() {
 
 <script>
 // Google Maps API Key (moet worden ingesteld in Django admin)
-const GOOGLE_MAPS_API_KEY = '{{ google_maps_config.api_key|default:"" }}';
+const GOOGLE_MAPS_API_KEY = '{{ google_maps_api_key|default:"" }}';
 console.log('🗺️ Google Maps API Key:', GOOGLE_MAPS_API_KEY ? 'Aanwezig' : 'Ontbreekt');
 
 // Global variables
@@ -1830,4 +1830,17 @@ function centerOnDepot() {
 }
 
 </script>
+
+<!-- Google Maps API -->
+{% if google_maps_api_key %}
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry&callback=initGoogleMaps">
+</script>
+{% else %}
+<script>
+    console.warn('⚠️ Google Maps API key niet beschikbaar');
+    document.getElementById('googleMap').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;"><h3>⚠️ Google Maps niet beschikbaar</h3><p>Google Maps API key is niet geconfigureerd.</p><p>Ga naar Django admin om de API key in te stellen.</p></div>';
+</script>
+{% endif %}
+
 {% endblock %}

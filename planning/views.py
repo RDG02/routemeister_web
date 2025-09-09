@@ -4318,6 +4318,11 @@ def planning_wizard_routes(request):
     routes_by_timeslot_json = json.dumps(routes_by_timeslot, default=str, ensure_ascii=False)
     timeslots_data_json = json.dumps(timeslots_data, default=str, ensure_ascii=False)
     
+    # Get Google Maps API key
+    google_maps_api_key = ''
+    if google_maps_config and google_maps_config.enabled:
+        google_maps_api_key = google_maps_config.api_key
+    
     context = {
         'page_title': 'Route Planning & Optimalisatie - Planning Wizard',
         'step': 3,
@@ -4329,6 +4334,7 @@ def planning_wizard_routes(request):
         'routes_by_timeslot': routes_by_timeslot_json,
         'route_data': route_data,
         'google_maps_config': google_maps_config,
+        'google_maps_api_key': google_maps_api_key,
         'depot_location': depot_location,
         'timeslots': timeslots,
         'timeslots_data': timeslots_data_json
