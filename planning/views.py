@@ -5282,7 +5282,7 @@ def generate_routes_with_google_maps(planning_data):
         
         if not available_vehicles:
             logger.warning("Geen beschikbare voertuigen voor route generatie")
-    return {
+            return {
                 'route_count': 0,
                 'total_distance': 0,
                 'total_time': 0,
@@ -5639,13 +5639,13 @@ def api_wizard_google_maps_routes(request):
                         # Gebruik test data uit request body
                         timeslot_assignments = request_data
                     else:
-            return JsonResponse({'error': 'Geen planning data gevonden'}, status=400)
+                        return JsonResponse({'error': 'Geen planning data gevonden'}, status=400)
                 except json.JSONDecodeError:
                     return JsonResponse({'error': 'Ongeldige JSON data'}, status=400)
             else:
                 return JsonResponse({'error': 'Geen planning data gevonden'}, status=400)
         else:
-        timeslot_assignments = wizard_data.get('timeslot_assignments', {})
+            timeslot_assignments = wizard_data.get('timeslot_assignments', {})
         if not timeslot_assignments:
             return JsonResponse({'error': 'Geen tijdblok toewijzingen gevonden'}, status=400)
         
@@ -5938,8 +5938,8 @@ def api_wizard_geocode_patients(request):
         use_fallback = not google_maps_service.is_enabled()
         
         if not use_fallback:
-        # Test API toegang
-        test_response = google_maps_service._make_api_call('geocode/json', {
+            # Test API toegang
+            test_response = google_maps_service._make_api_call('geocode/json', {
             'address': 'Bonn, Germany',
             'key': google_maps_service.api_key
         })
@@ -6030,14 +6030,14 @@ def api_wizard_geocode_patients(request):
                     logger.info(f"✅ Fallback geocoded: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
                 else:
                     # Gebruik Google Maps API
-                coords = google_maps_service.geocode_address(full_address)
+                    coords = google_maps_service.geocode_address(full_address)
                 if coords:
                     patient_info['latitude'] = coords[0]
                     patient_info['longitude'] = coords[1]
                     patient_info['geocoded'] = True
-                        patient_info['fallback_used'] = False
+                    patient_info['fallback_used'] = False
                     success_count += 1
-                        logger.info(f"✅ Google Maps geocoded: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
+                    logger.info(f"✅ Google Maps geocoded: {patient_info.get('achternaam', 'Onbekend')} - {full_address}")
                 else:
                     patient_info['geocoded'] = False
                     error_count += 1
