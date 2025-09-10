@@ -996,7 +996,8 @@ function goBack() {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
-    margin: 2rem 0;
+    margin: 1rem 0;  /* Reduced from 2rem to 1rem for more space */
+    min-height: 70vh;  /* Added minimum height for better space utilization */
 }
 
 /* Left Column: Vehicle Cards */
@@ -1032,7 +1033,7 @@ function goBack() {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-height: 600px;
+    max-height: 700px;  /* Increased from 600px to 700px for more space */
     overflow-y: auto;
 }
 
@@ -1306,7 +1307,7 @@ function goBack() {
 }
 
 .google-map-container {
-    height: 500px;
+    height: 600px;  /* Increased from 500px to 600px for more map space */
     width: 100%;
     border-radius: 8px;
     border: 1px solid #dee2e6;
@@ -1530,7 +1531,7 @@ function initMap() {
     console.log('🏢 Depot locatie:', depotLocation);
     
     map = new google.maps.Map(document.getElementById('googleMap'), {
-        zoom: 12,
+        zoom: 10,  // Reduced from 12 to 10 for wider view
         center: depotLocation,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     });
@@ -1891,7 +1892,7 @@ function centerOnDepot() {
         
         console.log('🏢 Centreren op depot:', depotLocation);
         map.setCenter(depotLocation);
-        map.setZoom(15); // Zoom in closer for depot view
+        map.setZoom(10); // Wider view for better overview
     }
 }
 
